@@ -5,7 +5,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { TransactionProvider } from '@/contexts/TransactionContext';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 
 SplashScreen.preventAutoHideAsync();
@@ -16,24 +16,45 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('[RootLayoutNav] Auth state:', { hasUser: !!user, isLoading, segments });
+    console.log('[RootLayoutNav] State:', { 
+      hasUser: !!user, 
+      isLoading, 
+      segments: segments.join('/'),
+      userId: user?.id 
+    });
 
+    // Don't do anything while loading
     if (isLoading) {
+      console.log('[RootLayoutNav] Still loading, waiting...');
       return;
     }
 
     const inAuthGroup = segments[0] === '(tabs)';
+    const onLoginScreen = segments[0] === 'login' || segments.length === 0;
 
+    console.log('[RootLayoutNav] Navigation check:', { inAuthGroup, onLoginScreen });
+
+    // Simple navigation logic
     if (!user && inAuthGroup) {
-      // User is not signed in and trying to access protected routes
-      console.log('[RootLayoutNav] Redirecting to login - no user');
+      // Not logged in but trying to access protected routes
+      console.log('[RootLayoutNav] No user, redirecting to login');
       router.replace('/login');
-    } else if (user && !inAuthGroup) {
-      // User is signed in but not in protected routes
-      console.log('[RootLayoutNav] Redirecting to home - user exists');
+    } else if (user && onLoginScreen) {
+      // Logged in but on login screen
+      console.log('[RootLayoutNav] User logged in, redirecting to home');
       router.replace('/(tabs)/(home)');
     }
   }, [user, isLoading, segments]);
+
+  // Show loading screen while checking auth
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -75,5 +96,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 });

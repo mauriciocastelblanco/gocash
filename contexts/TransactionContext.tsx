@@ -41,13 +41,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    console.log('[TransactionContext] Auth state changed:', {
+    console.log('[TransactionContext] Auth state:', {
       hasUser: !!user,
       authLoading,
+      userId: user?.id,
     });
 
+    // Only load transactions when we have a user and auth is done loading
     if (!authLoading && user) {
-      console.log('[TransactionContext] Loading transactions for user:', user.id);
+      console.log('[TransactionContext] Loading transactions...');
       loadTransactions();
     } else if (!authLoading && !user) {
       console.log('[TransactionContext] No user, clearing transactions');
@@ -57,15 +59,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const loadTransactions = async () => {
     if (!user) {
-      console.log('[TransactionContext] No user, skipping transaction load');
+      console.log('[TransactionContext] No user, skipping load');
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('[TransactionContext] Loading transactions for user:', user.id);
+      console.log('[TransactionContext] Fetching transactions for user:', user.id);
 
-      // Query transactions directly - the table already has main_category_name and subcategory_name columns
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -77,49 +78,27 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         throw error;
       }
 
-      console.log('[TransactionContext] Loaded transactions count:', data?.length || 0);
-      
-      if (data && data.length > 0) {
-        console.log('[TransactionContext] Sample transaction:', JSON.stringify(data[0], null, 2));
-      }
+      console.log('[TransactionContext] Loaded', data?.length || 0, 'transactions');
 
-      // Transform database transactions to app format
-      const transformedTransactions: Transaction[] = (data || []).map((t: any) => {
-        const amount = typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount;
-        const transactionDate = t.date ? new Date(t.date) : new Date(t.created_at);
-        
-        return {
-          id: t.id,
-          amount: amount,
-          description: t.description || '',
-          type: t.type as TransactionType,
-          mainCategoryId: t.main_category_id || '',
-          mainCategoryName: t.main_category_name || 'Sin categoría',
-          subcategoryId: t.subcategory_id || '',
-          subcategoryName: t.subcategory_name || 'Sin subcategoría',
-          paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
-          date: transactionDate,
-          createdAt: new Date(t.created_at),
-          installments: t.installments || undefined,
-          installmentNumber: t.installment_number || undefined,
-        };
-      });
-
-      console.log('[TransactionContext] Transformed transactions count:', transformedTransactions.length);
-      
-      if (transformedTransactions.length > 0) {
-        console.log('[TransactionContext] Sample transformed transaction:', JSON.stringify({
-          id: transformedTransactions[0].id,
-          amount: transformedTransactions[0].amount,
-          type: transformedTransactions[0].type,
-          description: transformedTransactions[0].description,
-          date: transformedTransactions[0].date.toISOString(),
-        }, null, 2));
-      }
+      const transformedTransactions: Transaction[] = (data || []).map((t: any) => ({
+        id: t.id,
+        amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount,
+        description: t.description || '',
+        type: t.type as TransactionType,
+        mainCategoryId: t.main_category_id || '',
+        mainCategoryName: t.main_category_name || 'Sin categoría',
+        subcategoryId: t.subcategory_id || '',
+        subcategoryName: t.subcategory_name || 'Sin subcategoría',
+        paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
+        date: t.date ? new Date(t.date) : new Date(t.created_at),
+        createdAt: new Date(t.created_at),
+        installments: t.installments || undefined,
+        installmentNumber: t.installment_number || undefined,
+      }));
 
       setTransactions(transformedTransactions);
     } catch (error) {
-      console.error('[TransactionContext] Error loading transactions:', error);
+      console.error('[TransactionContext] Error:', error);
       setTransactions([]);
     } finally {
       setIsLoading(false);
@@ -127,7 +106,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   };
 
   const refreshTransactions = async () => {
-    console.log('[TransactionContext] Refreshing transactions...');
+    console.log('[TransactionContext] Refreshing...');
     await loadTransactions();
   };
 
@@ -139,12 +118,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
 
     try {
-      console.log('[TransactionContext] Adding transaction:', transaction);
+      console.log('[TransactionContext] Adding transaction');
 
-      // Format date as YYYY-MM-DD
       const dateStr = transaction.date.toISOString().split('T')[0];
 
-      // Use the new transaction library
       await saveTransaction({
         userId: user.id,
         type: transaction.type,
@@ -154,12 +131,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         subcategoryId: transaction.subcategoryId,
         paymentMethodType: transaction.paymentMethod,
         installments: transaction.installments,
-        workspaceId: null, // Will be auto-fetched by the library
+        workspaceId: null,
       });
 
-      console.log('[TransactionContext] Transaction added successfully');
-
-      // Reload transactions to get the updated list
+      console.log('[TransactionContext] Transaction added');
       await loadTransactions();
     } catch (error) {
       console.error('[TransactionContext] Error adding transaction:', error);
@@ -182,38 +157,23 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('[TransactionContext] Error deleting transaction:', error);
+        console.error('[TransactionContext] Error deleting:', error);
         throw error;
       }
 
-      console.log('[TransactionContext] Transaction deleted successfully');
+      console.log('[TransactionContext] Transaction deleted');
       setTransactions((prev) => prev.filter((t) => t.id !== id));
     } catch (error) {
-      console.error('[TransactionContext] Error deleting transaction:', error);
+      console.error('[TransactionContext] Error:', error);
       throw error;
     }
   };
 
   const getMonthlyTransactions = (year: number, month: number): Transaction[] => {
-    const filtered = transactions.filter((t) => {
+    return transactions.filter((t) => {
       const date = new Date(t.date);
-      const txYear = date.getFullYear();
-      const txMonth = date.getMonth();
-      return txYear === year && txMonth === month;
+      return date.getFullYear() === year && date.getMonth() === month;
     });
-    
-    console.log(`[TransactionContext] Monthly transactions for ${year}-${month + 1}:`, filtered.length);
-    console.log(`[TransactionContext] Total transactions available:`, transactions.length);
-    
-    if (filtered.length > 0) {
-      console.log('[TransactionContext] Sample monthly transaction:', {
-        amount: filtered[0].amount,
-        type: filtered[0].type,
-        date: filtered[0].date.toISOString(),
-      });
-    }
-    
-    return filtered;
   };
 
   const getMonthlyTotal = (
@@ -226,15 +186,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       ? monthlyTransactions.filter((t) => t.type === type)
       : monthlyTransactions;
     
-    const total = filteredTransactions.reduce((sum, t) => {
+    return filteredTransactions.reduce((sum, t) => {
       const amount = typeof t.amount === 'number' ? t.amount : parseFloat(String(t.amount));
       return sum + (isNaN(amount) ? 0 : amount);
     }, 0);
-    
-    console.log(`[TransactionContext] Monthly total for ${year}-${month + 1} (${type || 'all'}):`, total);
-    console.log(`[TransactionContext] Transactions counted:`, filteredTransactions.length);
-    
-    return total;
   };
 
   const value = {
@@ -246,11 +201,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     getMonthlyTotal,
     refreshTransactions,
   };
-
-  console.log('[TransactionContext] Rendering with state:', {
-    transactionCount: transactions.length,
-    isLoading,
-  });
 
   return (
     <TransactionContext.Provider value={value}>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,18 +17,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const { signIn, user } = useAuth();
-
-  useEffect(() => {
-    console.log('[LoginScreen] User state changed:', { hasUser: !!user });
-    
-    // If user is already logged in, redirect to home
-    if (user) {
-      console.log('[LoginScreen] User already logged in, redirecting to home');
-      router.replace('/(tabs)/(home)');
-    }
-  }, [user]);
+  const { signIn } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -41,8 +29,8 @@ export default function LoginScreen() {
     try {
       console.log('[LoginScreen] Attempting login...');
       await signIn(email, password);
-      console.log('[LoginScreen] Login successful, navigating to home');
-      // Navigation will happen automatically via useEffect when user state changes
+      console.log('[LoginScreen] Login successful');
+      // Navigation will happen automatically via the layout
     } catch (error: any) {
       console.error('[LoginScreen] Login error:', error);
       

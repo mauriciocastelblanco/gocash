@@ -21,13 +21,6 @@ export default function HomeScreen() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  console.log('[HomeScreen iOS] Render state:', {
-    authLoading,
-    hasUser: !!user,
-    transactionCount: transactions.length,
-    isLoading,
-  });
-
   const monthlyIncome = getMonthlyTotal(currentYear, currentMonth, 'income');
   const monthlyExpenses = getMonthlyTotal(currentYear, currentMonth, 'expense');
   const balance = monthlyIncome - monthlyExpenses;
@@ -39,7 +32,6 @@ export default function HomeScreen() {
   ];
 
   const onRefresh = async () => {
-    console.log('[HomeScreen iOS] Refreshing...');
     setRefreshing(true);
     try {
       await refreshTransactions();
@@ -83,22 +75,12 @@ export default function HomeScreen() {
     return emojiMap[categoryName] || '📁';
   };
 
-  // Show loading state while auth is initializing
-  if (authLoading) {
+  // Show loading only on first load
+  if (authLoading || (isLoading && transactions.length === 0)) {
     return (
       <View style={[commonStyles.container, styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando...</Text>
-      </View>
-    );
-  }
-
-  // Show loading state while transactions are loading for the first time
-  if (isLoading && transactions.length === 0) {
-    return (
-      <View style={[commonStyles.container, styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Cargando transacciones...</Text>
       </View>
     );
   }
@@ -155,8 +137,8 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            monthlyTransactions.slice(0, 10).map((transaction) => (
-              <View key={transaction.id} style={styles.transactionCard}>
+            monthlyTransactions.slice(0, 10).map((transaction, index) => (
+              <View key={`${transaction.id}-${index}`} style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                   <View style={styles.categoryIcon}>
                     <Text style={styles.categoryEmoji}>
