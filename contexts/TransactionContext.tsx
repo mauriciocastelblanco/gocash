@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { saveTransaction } from '@/lib/transactions';
 
 export type TransactionType = 'expense' | 'income';
 export type PaymentMethod = 'debit' | 'credit' | 'cash';
@@ -21,6 +22,8 @@ interface Transaction {
   paymentMethod: PaymentMethod;
   date: Date;
   createdAt: Date;
+  installments?: number;
+  installmentNumber?: number;
 }
 
 interface TransactionContextType {
@@ -57,7 +60,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     setIsLoading(true);
     try {
       console.log('Loading transactions for user:', user.id);
-      
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -70,9 +73,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       }
 
       console.log('Loaded transactions:', data?.length);
-      
+
       // Transform database transactions to app format
-      const transformedTransactions: Transaction[] = (data || []).map(t => ({
+      const transformedTransactions: Transaction[] = (data || []).map((t) => ({
         id: t.id,
         amount: parseFloat(t.amount),
         description: t.description || '',
@@ -85,6 +88,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
         date: new Date(t.date || t.created_at),
         createdAt: new Date(t.created_at),
+        installments: t.installments || undefined,
+        installmentNumber: t.installment_number || undefined,
       }));
 
       setTransactions(transformedTransactions);
@@ -99,41 +104,38 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     await loadTransactions();
   };
 
-  const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
+  const addTransaction = async (
+    transaction: Omit<Transaction, 'id' | 'createdAt'>
+  ) => {
     if (!user) {
       throw new Error('User not authenticated');
     }
 
     try {
-      console.log('Adding transaction:', transaction);
+      console.log('[TransactionContext] Adding transaction:', transaction);
 
-      const { data, error } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: user.id,
-          type: transaction.type,
-          amount: transaction.amount,
-          description: transaction.description,
-          payment_method_type: transaction.paymentMethod,
-          date: transaction.date.toISOString(),
-          main_category_name: transaction.category.name,
-          affects_balance: true,
-          source: 'manual_transaction',
-        })
-        .select()
-        .single();
+      // Format date as YYYY-MM-DD
+      const dateStr = transaction.date.toISOString().split('T')[0];
 
-      if (error) {
-        console.error('Error adding transaction:', error);
-        throw error;
-      }
+      // Use the new transaction library
+      await saveTransaction({
+        userId: user.id,
+        type: transaction.type,
+        amount: transaction.amount,
+        description: transaction.description,
+        date: dateStr,
+        subcategoryId: null, // We don't have subcategory mapping yet
+        paymentMethodType: transaction.paymentMethod,
+        installments: transaction.installments,
+        workspaceId: null, // Will be auto-fetched by the library
+      });
 
-      console.log('Transaction added successfully:', data);
-      
+      console.log('[TransactionContext] Transaction added successfully');
+
       // Reload transactions to get the updated list
       await loadTransactions();
     } catch (error) {
-      console.error('Error adding transaction:', error);
+      console.error('[TransactionContext] Error adding transaction:', error);
       throw error;
     }
   };
@@ -145,7 +147,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
     try {
       console.log('Deleting transaction:', id);
-      
+
       const { error } = await supabase
         .from('transactions')
         .delete()
@@ -158,7 +160,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       }
 
       console.log('Transaction deleted successfully');
-      setTransactions(prev => prev.filter(t => t.id !== id));
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
     } catch (error) {
       console.error('Error deleting transaction:', error);
       throw error;
@@ -166,16 +168,20 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   };
 
   const getMonthlyTransactions = (year: number, month: number): Transaction[] => {
-    return transactions.filter(t => {
+    return transactions.filter((t) => {
       const date = new Date(t.date);
       return date.getFullYear() === year && date.getMonth() === month;
     });
   };
 
-  const getMonthlyTotal = (year: number, month: number, type?: TransactionType): number => {
+  const getMonthlyTotal = (
+    year: number,
+    month: number,
+    type?: TransactionType
+  ): number => {
     const monthlyTransactions = getMonthlyTransactions(year, month);
     return monthlyTransactions
-      .filter(t => !type || t.type === type)
+      .filter((t) => !type || t.type === type)
       .reduce((sum, t) => sum + (t.type === 'expense' ? t.amount : t.amount), 0);
   };
 

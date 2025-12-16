@@ -29,6 +29,7 @@ export default function NewTransactionScreen() {
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [installments, setInstallments] = useState('1');
 
   const handleSubmit = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -41,6 +42,12 @@ export default function NewTransactionScreen() {
       return;
     }
 
+    const installmentsNum = parseInt(installments) || 1;
+    if (paymentMethod === 'credit' && (installmentsNum < 1 || installmentsNum > 48)) {
+      Alert.alert('Error', 'El número de cuotas debe estar entre 1 y 48');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await addTransaction({
@@ -50,6 +57,7 @@ export default function NewTransactionScreen() {
         category: selectedCategory,
         paymentMethod,
         date,
+        installments: paymentMethod === 'credit' ? installmentsNum : undefined,
       });
 
       Alert.alert('Éxito', 'Transacción agregada correctamente', [
@@ -192,7 +200,10 @@ export default function NewTransactionScreen() {
                   styles.paymentButton,
                   paymentMethod === 'debit' && styles.paymentButtonActive,
                 ]}
-                onPress={() => setPaymentMethod('debit')}
+                onPress={() => {
+                  setPaymentMethod('debit');
+                  setInstallments('1');
+                }}
                 disabled={isLoading}
               >
                 <Text
@@ -226,7 +237,10 @@ export default function NewTransactionScreen() {
                   styles.paymentButton,
                   paymentMethod === 'cash' && styles.paymentButtonActive,
                 ]}
-                onPress={() => setPaymentMethod('cash')}
+                onPress={() => {
+                  setPaymentMethod('cash');
+                  setInstallments('1');
+                }}
                 disabled={isLoading}
               >
                 <Text
@@ -240,6 +254,28 @@ export default function NewTransactionScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {paymentMethod === 'credit' && (
+            <View style={styles.inputGroup}>
+              <Text style={commonStyles.inputLabel}>Número de cuotas</Text>
+              <TextInput
+                style={commonStyles.input}
+                placeholder="1"
+                placeholderTextColor={colors.textSecondary}
+                value={installments}
+                onChangeText={setInstallments}
+                keyboardType="number-pad"
+                editable={!isLoading}
+              />
+              <Text style={styles.helperText}>
+                {parseInt(installments) > 1
+                  ? `${parseInt(installments)} cuotas de $${(
+                      parseFloat(amount || '0') / parseInt(installments)
+                    ).toFixed(0)}`
+                  : 'Ingresa el número de cuotas (1-48)'}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={commonStyles.inputLabel}>Fecha</Text>
@@ -268,7 +304,11 @@ export default function NewTransactionScreen() {
           )}
 
           <TouchableOpacity
-            style={[buttonStyles.primaryButton, styles.submitButton, isLoading && styles.disabledButton]}
+            style={[
+              buttonStyles.primaryButton,
+              styles.submitButton,
+              isLoading && styles.disabledButton,
+            ]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
@@ -409,5 +449,10 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  helperText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
 });

@@ -17,6 +17,8 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   date: Date;
   createdAt: Date;
+  installments?: number;
+  installmentNumber?: number;
 }
 
 export const CATEGORIES: Category[] = [
