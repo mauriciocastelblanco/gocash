@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,17 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+
+  useEffect(() => {
+    console.log('[LoginScreen] User state changed:', { hasUser: !!user });
+    
+    // If user is already logged in, redirect to home
+    if (user) {
+      console.log('[LoginScreen] User already logged in, redirecting to home');
+      router.replace('/(tabs)/(home)');
+    }
+  }, [user]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -29,10 +39,12 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
+      console.log('[LoginScreen] Attempting login...');
       await signIn(email, password);
-      router.replace('/(tabs)/(home)');
+      console.log('[LoginScreen] Login successful, navigating to home');
+      // Navigation will happen automatically via useEffect when user state changes
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[LoginScreen] Login error:', error);
       
       let errorMessage = 'No se pudo iniciar sesión. Por favor intenta de nuevo.';
       

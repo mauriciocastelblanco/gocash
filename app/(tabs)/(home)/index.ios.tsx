@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,11 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeScreen() {
-  const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const { transactions, getMonthlyTotal, getMonthlyTransactions, isLoading, refreshTransactions } = useTransactions();
   const [refreshing, setRefreshing] = useState(false);
@@ -51,18 +49,6 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    console.log('[HomeScreen iOS] Auth state changed:', {
-      authLoading,
-      hasUser: !!user,
-    });
-
-    if (!authLoading && !user) {
-      console.log('[HomeScreen iOS] No user, redirecting to login');
-      router.replace('/login');
-    }
-  }, [user, authLoading]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
