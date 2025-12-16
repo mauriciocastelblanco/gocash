@@ -1,26 +1,17 @@
 
-import { Tabs } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol.ios';
-import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
   return (
-    <Tabs
+    <NativeTabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-        },
-        headerShown: false,
       }}
     >
-      <Tabs.Screen
+      <NativeTabs.Screen
         name="(home)"
         options={{
           title: 'Inicio',
@@ -29,7 +20,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      <NativeTabs.Screen
         name="new-transaction"
         options={{
           title: 'Nueva',
@@ -38,7 +29,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      <NativeTabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
@@ -47,6 +38,6 @@ export default function TabLayout() {
           ),
         }}
       />
-    </Tabs>
+    </NativeTabs>
   );
 }

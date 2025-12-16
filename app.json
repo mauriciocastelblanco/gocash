@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Green Wallet",
-    "slug": "Green Wallet",
+    "name": "Gocash",
+    "slug": "Gocash",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -44,5 +44,5 @@
       "router": {}
     }
   },
-  "scheme": "Green Wallet"
+  "scheme": "Gocash"
 }

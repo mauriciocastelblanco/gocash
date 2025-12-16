@@ -50,13 +50,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const loadTransactions = async () => {
     if (!user) {
-      console.log('No user, skipping transaction load');
+      console.log('[TransactionContext] No user, skipping transaction load');
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('Loading transactions for user:', user.id);
+      console.log('[TransactionContext] Loading transactions for user:', user.id);
 
       // Query transactions directly - the table already has main_category_name and subcategory_name columns
       const { data, error } = await supabase
@@ -66,42 +66,61 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         .order('date', { ascending: false });
 
       if (error) {
-        console.error('Error loading transactions:', error);
+        console.error('[TransactionContext] Error loading transactions:', error);
         throw error;
       }
 
-      console.log('Loaded transactions:', data?.length);
-      console.log('Sample transaction:', data?.[0]);
+      console.log('[TransactionContext] Loaded transactions count:', data?.length || 0);
+      
+      if (data && data.length > 0) {
+        console.log('[TransactionContext] Sample transaction:', JSON.stringify(data[0], null, 2));
+      }
 
       // Transform database transactions to app format
-      const transformedTransactions: Transaction[] = (data || []).map((t: any) => ({
-        id: t.id,
-        amount: parseFloat(t.amount),
-        description: t.description || '',
-        type: t.type as TransactionType,
-        mainCategoryId: t.main_category_id || '',
-        mainCategoryName: t.main_category_name || 'Sin categoría',
-        subcategoryId: t.subcategory_id || '',
-        subcategoryName: t.subcategory_name || 'Sin subcategoría',
-        paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
-        date: new Date(t.date || t.created_at),
-        createdAt: new Date(t.created_at),
-        installments: t.installments || undefined,
-        installmentNumber: t.installment_number || undefined,
-      }));
+      const transformedTransactions: Transaction[] = (data || []).map((t: any) => {
+        const amount = typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount;
+        const transactionDate = t.date ? new Date(t.date) : new Date(t.created_at);
+        
+        return {
+          id: t.id,
+          amount: amount,
+          description: t.description || '',
+          type: t.type as TransactionType,
+          mainCategoryId: t.main_category_id || '',
+          mainCategoryName: t.main_category_name || 'Sin categoría',
+          subcategoryId: t.subcategory_id || '',
+          subcategoryName: t.subcategory_name || 'Sin subcategoría',
+          paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
+          date: transactionDate,
+          createdAt: new Date(t.created_at),
+          installments: t.installments || undefined,
+          installmentNumber: t.installment_number || undefined,
+        };
+      });
 
-      console.log('Transformed transactions:', transformedTransactions.length);
-      console.log('Sample transformed:', transformedTransactions[0]);
+      console.log('[TransactionContext] Transformed transactions count:', transformedTransactions.length);
+      
+      if (transformedTransactions.length > 0) {
+        console.log('[TransactionContext] Sample transformed transaction:', JSON.stringify({
+          id: transformedTransactions[0].id,
+          amount: transformedTransactions[0].amount,
+          type: transformedTransactions[0].type,
+          description: transformedTransactions[0].description,
+          date: transformedTransactions[0].date.toISOString(),
+        }, null, 2));
+      }
 
       setTransactions(transformedTransactions);
     } catch (error) {
-      console.error('Error loading transactions:', error);
+      console.error('[TransactionContext] Error loading transactions:', error);
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const refreshTransactions = async () => {
+    console.log('[TransactionContext] Refreshing transactions...');
     await loadTransactions();
   };
 
@@ -147,7 +166,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
 
     try {
-      console.log('Deleting transaction:', id);
+      console.log('[TransactionContext] Deleting transaction:', id);
 
       const { error } = await supabase
         .from('transactions')
@@ -156,14 +175,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error deleting transaction:', error);
+        console.error('[TransactionContext] Error deleting transaction:', error);
         throw error;
       }
 
-      console.log('Transaction deleted successfully');
+      console.log('[TransactionContext] Transaction deleted successfully');
       setTransactions((prev) => prev.filter((t) => t.id !== id));
     } catch (error) {
-      console.error('Error deleting transaction:', error);
+      console.error('[TransactionContext] Error deleting transaction:', error);
       throw error;
     }
   };
@@ -171,9 +190,22 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const getMonthlyTransactions = (year: number, month: number): Transaction[] => {
     const filtered = transactions.filter((t) => {
       const date = new Date(t.date);
-      return date.getFullYear() === year && date.getMonth() === month;
+      const txYear = date.getFullYear();
+      const txMonth = date.getMonth();
+      return txYear === year && txMonth === month;
     });
-    console.log(`Monthly transactions for ${year}-${month}:`, filtered.length);
+    
+    console.log(`[TransactionContext] Monthly transactions for ${year}-${month + 1}:`, filtered.length);
+    console.log(`[TransactionContext] Total transactions available:`, transactions.length);
+    
+    if (filtered.length > 0) {
+      console.log('[TransactionContext] Sample monthly transaction:', {
+        amount: filtered[0].amount,
+        type: filtered[0].type,
+        date: filtered[0].date.toISOString(),
+      });
+    }
+    
     return filtered;
   };
 
@@ -183,10 +215,18 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     type?: TransactionType
   ): number => {
     const monthlyTransactions = getMonthlyTransactions(year, month);
-    const total = monthlyTransactions
-      .filter((t) => !type || t.type === type)
-      .reduce((sum, t) => sum + t.amount, 0);
-    console.log(`Monthly total for ${year}-${month} (${type || 'all'}):`, total);
+    const filteredTransactions = type 
+      ? monthlyTransactions.filter((t) => t.type === type)
+      : monthlyTransactions;
+    
+    const total = filteredTransactions.reduce((sum, t) => {
+      const amount = typeof t.amount === 'number' ? t.amount : parseFloat(String(t.amount));
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    
+    console.log(`[TransactionContext] Monthly total for ${year}-${month + 1} (${type || 'all'}):`, total);
+    console.log(`[TransactionContext] Transactions counted:`, filteredTransactions.length);
+    
     return total;
   };
 

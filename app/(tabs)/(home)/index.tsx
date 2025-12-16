@@ -24,10 +24,20 @@ export default function HomeScreen() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
+  console.log('[HomeScreen] Current date:', { currentYear, currentMonth: currentMonth + 1 });
+  console.log('[HomeScreen] Total transactions:', transactions.length);
+
   const monthlyIncome = getMonthlyTotal(currentYear, currentMonth, 'income');
   const monthlyExpenses = getMonthlyTotal(currentYear, currentMonth, 'expense');
   const balance = monthlyIncome - monthlyExpenses;
   const monthlyTransactions = getMonthlyTransactions(currentYear, currentMonth);
+
+  console.log('[HomeScreen] Monthly summary:', {
+    income: monthlyIncome,
+    expenses: monthlyExpenses,
+    balance: balance,
+    transactionCount: monthlyTransactions.length,
+  });
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -35,11 +45,12 @@ export default function HomeScreen() {
   ];
 
   const onRefresh = async () => {
+    console.log('[HomeScreen] Refreshing...');
     setRefreshing(true);
     try {
       await refreshTransactions();
     } catch (error) {
-      console.error('Error refreshing:', error);
+      console.error('[HomeScreen] Error refreshing:', error);
     } finally {
       setRefreshing(false);
     }
@@ -47,7 +58,10 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user) {
+      console.log('[HomeScreen] No user, redirecting to login');
       router.replace('/login');
+    } else {
+      console.log('[HomeScreen] User logged in:', user.id);
     }
   }, [user]);
 
@@ -77,6 +91,9 @@ export default function HomeScreen() {
       'Salario': '💼',
       'Inversiones': '📈',
       'Freelance': '💻',
+      'Alimentación y hogar': '🏠',
+      'Servicios básicos': '💡',
+      'Ahorro': '💰',
     };
     return emojiMap[categoryName] || '📁';
   };
@@ -142,7 +159,7 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            monthlyTransactions.slice(0, 10).map((transaction, index) => (
+            monthlyTransactions.slice(0, 10).map((transaction) => (
               <View key={transaction.id} style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                   <View style={styles.categoryIcon}>

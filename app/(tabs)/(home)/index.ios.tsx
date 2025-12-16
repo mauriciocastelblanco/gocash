@@ -24,10 +24,20 @@ export default function HomeScreen() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
+  console.log('[HomeScreen iOS] Current date:', { currentYear, currentMonth: currentMonth + 1 });
+  console.log('[HomeScreen iOS] Total transactions:', transactions.length);
+
   const monthlyIncome = getMonthlyTotal(currentYear, currentMonth, 'income');
   const monthlyExpenses = getMonthlyTotal(currentYear, currentMonth, 'expense');
   const balance = monthlyIncome - monthlyExpenses;
   const monthlyTransactions = getMonthlyTransactions(currentYear, currentMonth);
+
+  console.log('[HomeScreen iOS] Monthly summary:', {
+    income: monthlyIncome,
+    expenses: monthlyExpenses,
+    balance: balance,
+    transactionCount: monthlyTransactions.length,
+  });
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -35,11 +45,12 @@ export default function HomeScreen() {
   ];
 
   const onRefresh = async () => {
+    console.log('[HomeScreen iOS] Refreshing...');
     setRefreshing(true);
     try {
       await refreshTransactions();
     } catch (error) {
-      console.error('Error refreshing:', error);
+      console.error('[HomeScreen iOS] Error refreshing:', error);
     } finally {
       setRefreshing(false);
     }
@@ -47,7 +58,10 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user) {
+      console.log('[HomeScreen iOS] No user, redirecting to login');
       router.replace('/login');
+    } else {
+      console.log('[HomeScreen iOS] User logged in:', user.id);
     }
   }, [user]);
 
@@ -77,6 +91,9 @@ export default function HomeScreen() {
       'Salario': '💼',
       'Inversiones': '📈',
       'Freelance': '💻',
+      'Alimentación y hogar': '🏠',
+      'Servicios básicos': '💡',
+      'Ahorro': '💰',
     };
     return emojiMap[categoryName] || '📁';
   };
@@ -142,7 +159,7 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            monthlyTransactions.slice(0, 10).map((transaction, index) => (
+            monthlyTransactions.slice(0, 10).map((transaction) => (
               <View key={transaction.id} style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                   <View style={styles.categoryIcon}>
@@ -179,7 +196,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 0,
+    paddingTop: 0, // iOS has native header
   },
   centerContent: {
     justifyContent: 'center',
@@ -195,6 +212,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 120,
   },
   header: {
@@ -217,8 +235,9 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 12,
+    elevation: 4,
   },
   balanceContainer: {
     marginBottom: 24,
