@@ -60,7 +60,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
       const { data, error } = await supabase
         .from('transactions')
-        .select('*')
+        .select(`
+          *,
+          main_categories!transactions_main_category_id_fkey (
+            nombre,
+            icono
+          ),
+          subcategories!transactions_subcategory_id_fkey (
+            nombre
+          )
+        `)
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
@@ -72,15 +81,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       console.log('Loaded transactions:', data?.length);
 
       // Transform database transactions to app format
-      const transformedTransactions: Transaction[] = (data || []).map((t) => ({
+      const transformedTransactions: Transaction[] = (data || []).map((t: any) => ({
         id: t.id,
         amount: parseFloat(t.amount),
         description: t.description || '',
         type: t.type as TransactionType,
         mainCategoryId: t.main_category_id || '',
-        mainCategoryName: t.main_category_name || 'Sin categoría',
+        mainCategoryName: t.main_categories?.nombre || 'Sin categoría',
         subcategoryId: t.subcategory_id || '',
-        subcategoryName: t.subcategory_name || 'Sin subcategoría',
+        subcategoryName: t.subcategories?.nombre || 'Sin subcategoría',
         paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
         date: new Date(t.date || t.created_at),
         createdAt: new Date(t.created_at),

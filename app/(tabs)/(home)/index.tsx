@@ -64,6 +64,23 @@ export default function HomeScreen() {
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
 
+  const getCategoryEmoji = (categoryName: string): string => {
+    const emojiMap: { [key: string]: string } = {
+      'Supermercado': '🛒',
+      'Restaurante': '🍽️',
+      'Transporte': '🚗',
+      'Salud': '💊',
+      'Entretenimiento': '🎬',
+      'Hogar': '🏠',
+      'Educación': '📚',
+      'Otros': '💰',
+      'Salario': '💼',
+      'Inversiones': '📈',
+      'Freelance': '💻',
+    };
+    return emojiMap[categoryName] || '📁';
+  };
+
   if (isLoading && transactions.length === 0) {
     return (
       <View style={[commonStyles.container, styles.container, styles.centerContent]}>
@@ -129,14 +146,16 @@ export default function HomeScreen() {
               <View key={transaction.id} style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                   <View style={styles.categoryIcon}>
-                    <Text style={styles.categoryEmoji}>{transaction.category.emoji}</Text>
+                    <Text style={styles.categoryEmoji}>
+                      {getCategoryEmoji(transaction.mainCategoryName)}
+                    </Text>
                   </View>
                   <View style={styles.transactionInfo}>
                     <Text style={styles.transactionDescription}>
                       {transaction.description}
                     </Text>
                     <Text style={styles.transactionCategory}>
-                      {transaction.category.name} • {formatDate(transaction.date)}
+                      {transaction.subcategoryName} • {formatDate(transaction.date)}
                     </Text>
                   </View>
                 </View>
