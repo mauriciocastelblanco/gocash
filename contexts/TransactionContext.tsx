@@ -38,15 +38,22 @@ const TransactionContext = createContext<TransactionContextType | undefined>(und
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    console.log('[TransactionContext] Auth state changed:', {
+      hasUser: !!user,
+      authLoading,
+    });
+
+    if (!authLoading && user) {
+      console.log('[TransactionContext] Loading transactions for user:', user.id);
       loadTransactions();
-    } else {
+    } else if (!authLoading && !user) {
+      console.log('[TransactionContext] No user, clearing transactions');
       setTransactions([]);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const loadTransactions = async () => {
     if (!user) {
@@ -230,18 +237,23 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     return total;
   };
 
+  const value = {
+    transactions,
+    isLoading,
+    addTransaction,
+    deleteTransaction,
+    getMonthlyTransactions,
+    getMonthlyTotal,
+    refreshTransactions,
+  };
+
+  console.log('[TransactionContext] Rendering with state:', {
+    transactionCount: transactions.length,
+    isLoading,
+  });
+
   return (
-    <TransactionContext.Provider
-      value={{
-        transactions,
-        isLoading,
-        addTransaction,
-        deleteTransaction,
-        getMonthlyTransactions,
-        getMonthlyTotal,
-        refreshTransactions,
-      }}
-    >
+    <TransactionContext.Provider value={value}>
       {children}
     </TransactionContext.Provider>
   );

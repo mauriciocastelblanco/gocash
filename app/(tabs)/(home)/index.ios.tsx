@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
@@ -16,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { transactions, getMonthlyTotal, getMonthlyTransactions, isLoading, refreshTransactions } = useTransactions();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -24,20 +23,17 @@ export default function HomeScreen() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  console.log('[HomeScreen iOS] Current date:', { currentYear, currentMonth: currentMonth + 1 });
-  console.log('[HomeScreen iOS] Total transactions:', transactions.length);
+  console.log('[HomeScreen iOS] Render state:', {
+    authLoading,
+    hasUser: !!user,
+    transactionCount: transactions.length,
+    isLoading,
+  });
 
   const monthlyIncome = getMonthlyTotal(currentYear, currentMonth, 'income');
   const monthlyExpenses = getMonthlyTotal(currentYear, currentMonth, 'expense');
   const balance = monthlyIncome - monthlyExpenses;
   const monthlyTransactions = getMonthlyTransactions(currentYear, currentMonth);
-
-  console.log('[HomeScreen iOS] Monthly summary:', {
-    income: monthlyIncome,
-    expenses: monthlyExpenses,
-    balance: balance,
-    transactionCount: monthlyTransactions.length,
-  });
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -57,13 +53,16 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    if (!user) {
+    console.log('[HomeScreen iOS] Auth state changed:', {
+      authLoading,
+      hasUser: !!user,
+    });
+
+    if (!authLoading && !user) {
       console.log('[HomeScreen iOS] No user, redirecting to login');
       router.replace('/login');
-    } else {
-      console.log('[HomeScreen iOS] User logged in:', user.id);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -98,6 +97,17 @@ export default function HomeScreen() {
     return emojiMap[categoryName] || '📁';
   };
 
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <View style={[commonStyles.container, styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  // Show loading state while transactions are loading for the first time
   if (isLoading && transactions.length === 0) {
     return (
       <View style={[commonStyles.container, styles.container, styles.centerContent]}>

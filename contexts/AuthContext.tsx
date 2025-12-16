@@ -20,50 +20,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[AuthContext] Initializing...');
+    
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          console.error('[AuthContext] Error getting session:', error);
+        }
+        console.log('[AuthContext] Initial session:', session ? 'Found' : 'None');
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error('[AuthContext] Error in getSession:', error);
+        setIsLoading(false);
+      });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth state changed:', _event, session);
+      console.log('[AuthContext] Auth state changed:', _event, session ? 'Session exists' : 'No session');
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('[AuthContext] Cleaning up subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting to sign in with:', email);
+      console.log('[AuthContext] Attempting to sign in with:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        console.error('[AuthContext] Sign in error:', error);
         throw error;
       }
 
-      console.log('Sign in successful:', data);
+      console.log('[AuthContext] Sign in successful');
       setSession(data.session);
       setUser(data.user);
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error('[AuthContext] Error signing in:', error);
       throw error;
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      console.log('Attempting to sign up with:', email);
+      console.log('[AuthContext] Attempting to sign up with:', email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -73,38 +86,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.error('Sign up error:', error);
+        console.error('[AuthContext] Sign up error:', error);
         throw error;
       }
 
-      console.log('Sign up successful:', data);
+      console.log('[AuthContext] Sign up successful');
       return data;
     } catch (error) {
-      console.error('Error signing up:', error);
+      console.error('[AuthContext] Error signing up:', error);
       throw error;
     }
   };
 
   const signOut = async () => {
     try {
-      console.log('Signing out');
+      console.log('[AuthContext] Signing out');
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('Sign out error:', error);
+        console.error('[AuthContext] Sign out error:', error);
         throw error;
       }
 
       setSession(null);
       setUser(null);
+      console.log('[AuthContext] Sign out successful');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('[AuthContext] Error signing out:', error);
       throw error;
     }
   };
 
+  const value = {
+    user,
+    session,
+    isLoading,
+    signIn,
+    signUp,
+    signOut,
+  };
+
+  console.log('[AuthContext] Rendering with state:', {
+    hasUser: !!user,
+    isLoading,
+  });
+
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
