@@ -7,17 +7,17 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Transaction } from '@/types/transaction';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { transactions, getMonthlyTotal, getMonthlyTransactions } = useTransactions();
+  const { transactions, getMonthlyTotal, getMonthlyTransactions, isLoading, refreshTransactions } = useTransactions();
   const [refreshing, setRefreshing] = useState(false);
 
   const currentDate = new Date();
@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const currentMonth = currentDate.getMonth();
 
   const monthlyIncome = getMonthlyTotal(currentYear, currentMonth, 'income');
-  const monthlyExpenses = Math.abs(getMonthlyTotal(currentYear, currentMonth, 'expense'));
+  const monthlyExpenses = getMonthlyTotal(currentYear, currentMonth, 'expense');
   const balance = monthlyIncome - monthlyExpenses;
   const monthlyTransactions = getMonthlyTransactions(currentYear, currentMonth);
 
@@ -36,8 +36,13 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      await refreshTransactions();
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -47,9 +52,9 @@ export default function HomeScreen() {
   }, [user]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-AR', {
+    return new Intl.NumberFormat('es-CL', {
       style: 'currency',
-      currency: 'ARS',
+      currency: 'CLP',
       minimumFractionDigits: 0,
     }).format(amount);
   };
@@ -58,6 +63,15 @@ export default function HomeScreen() {
     const d = new Date(date);
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
+
+  if (isLoading && transactions.length === 0) {
+    return (
+      <View style={[commonStyles.container, styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Cargando transacciones...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[commonStyles.container, styles.container]}>
@@ -112,7 +126,7 @@ export default function HomeScreen() {
             </View>
           ) : (
             monthlyTransactions.slice(0, 10).map((transaction, index) => (
-              <View key={index} style={styles.transactionCard}>
+              <View key={transaction.id} style={styles.transactionCard}>
                 <View style={styles.transactionLeft}>
                   <View style={styles.categoryIcon}>
                     <Text style={styles.categoryEmoji}>{transaction.category.emoji}</Text>
@@ -146,7 +160,16 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 60,
+    paddingTop: 0,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   scrollView: {
     flex: 1,

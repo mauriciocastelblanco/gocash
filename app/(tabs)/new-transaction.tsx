@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -59,16 +60,16 @@ export default function NewTransactionScreen() {
           },
         },
       ]);
-    } catch (error) {
-      console.log('Error adding transaction:', error);
-      Alert.alert('Error', 'No se pudo agregar la transacción');
+    } catch (error: any) {
+      console.error('Error adding transaction:', error);
+      Alert.alert('Error', error?.message || 'No se pudo agregar la transacción');
     } finally {
       setIsLoading(false);
     }
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('es-AR', {
+    return date.toLocaleDateString('es-CL', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
@@ -91,11 +92,12 @@ export default function NewTransactionScreen() {
             <Text style={commonStyles.inputLabel}>Monto</Text>
             <TextInput
               style={[commonStyles.input, styles.amountInput]}
-              placeholder="0.00"
+              placeholder="0"
               placeholderTextColor={colors.textSecondary}
               value={amount}
               onChangeText={setAmount}
               keyboardType="decimal-pad"
+              editable={!isLoading}
             />
           </View>
 
@@ -107,6 +109,7 @@ export default function NewTransactionScreen() {
               placeholderTextColor={colors.textSecondary}
               value={description}
               onChangeText={setDescription}
+              editable={!isLoading}
             />
           </View>
 
@@ -119,6 +122,7 @@ export default function NewTransactionScreen() {
                   type === 'expense' && styles.segmentButtonActive,
                 ]}
                 onPress={() => setType('expense')}
+                disabled={isLoading}
               >
                 <Text
                   style={[
@@ -135,6 +139,7 @@ export default function NewTransactionScreen() {
                   type === 'income' && styles.segmentButtonActive,
                 ]}
                 onPress={() => setType('income')}
+                disabled={isLoading}
               >
                 <Text
                   style={[
@@ -163,6 +168,7 @@ export default function NewTransactionScreen() {
                     selectedCategory.id === category.id && styles.categoryButtonActive,
                   ]}
                   onPress={() => setSelectedCategory(category)}
+                  disabled={isLoading}
                 >
                   <Text style={styles.categoryEmoji}>{category.emoji}</Text>
                   <Text
@@ -187,6 +193,7 @@ export default function NewTransactionScreen() {
                   paymentMethod === 'debit' && styles.paymentButtonActive,
                 ]}
                 onPress={() => setPaymentMethod('debit')}
+                disabled={isLoading}
               >
                 <Text
                   style={[
@@ -203,6 +210,7 @@ export default function NewTransactionScreen() {
                   paymentMethod === 'credit' && styles.paymentButtonActive,
                 ]}
                 onPress={() => setPaymentMethod('credit')}
+                disabled={isLoading}
               >
                 <Text
                   style={[
@@ -219,6 +227,7 @@ export default function NewTransactionScreen() {
                   paymentMethod === 'cash' && styles.paymentButtonActive,
                 ]}
                 onPress={() => setPaymentMethod('cash')}
+                disabled={isLoading}
               >
                 <Text
                   style={[
@@ -237,6 +246,7 @@ export default function NewTransactionScreen() {
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowDatePicker(true)}
+              disabled={isLoading}
             >
               <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
             </TouchableOpacity>
@@ -258,13 +268,15 @@ export default function NewTransactionScreen() {
           )}
 
           <TouchableOpacity
-            style={[buttonStyles.primaryButton, styles.submitButton]}
+            style={[buttonStyles.primaryButton, styles.submitButton, isLoading && styles.disabledButton]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
-            <Text style={buttonStyles.primaryButtonText}>
-              {isLoading ? 'Guardando...' : 'Guardar Transacción'}
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color={colors.background} />
+            ) : (
+              <Text style={buttonStyles.primaryButtonText}>Guardar Transacción</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -394,5 +406,8 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 8,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

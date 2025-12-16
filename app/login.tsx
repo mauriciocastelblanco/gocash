@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
@@ -32,9 +31,22 @@ export default function LoginScreen() {
     try {
       await signIn(email, password);
       router.replace('/(tabs)/(home)');
-    } catch (error) {
-      console.log('Login error:', error);
-      Alert.alert('Error', 'No se pudo iniciar sesión. Por favor intenta de nuevo.');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      let errorMessage = 'No se pudo iniciar sesión. Por favor intenta de nuevo.';
+      
+      if (error?.message) {
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email o contraseña incorrectos';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Por favor confirma tu email antes de iniciar sesión';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -68,6 +80,7 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              editable={!isLoading}
             />
           </View>
 
@@ -81,6 +94,7 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               secureTextEntry
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
 
@@ -96,8 +110,7 @@ export default function LoginScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              💡 Para usar esta app, necesitas habilitar Supabase presionando el botón de Supabase
-              y conectándote a un proyecto.
+              💡 Esta app está conectada a Supabase. Usa tus credenciales para iniciar sesión.
             </Text>
           </View>
         </View>
