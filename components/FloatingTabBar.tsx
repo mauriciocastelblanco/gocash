@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   View,
@@ -6,12 +7,12 @@ import {
   StyleSheet,
   Platform,
   Dimensions,
+  useColorScheme,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
 import { BlurView } from 'expo-blur';
-import { useTheme } from '@react-navigation/native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -20,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
+import { colors } from '@/styles/commonStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -45,7 +47,8 @@ export default function FloatingTabBar({
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const theme = useTheme();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const animatedValue = useSharedValue(0);
 
   // Improved active tab detection with better path matching
@@ -98,8 +101,6 @@ export default function FloatingTabBar({
     router.push(route);
   };
 
-  // Remove unnecessary tabBarStyle animation to prevent flickering
-
   const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
 
   const indicatorStyle = useAnimatedStyle(() => {
@@ -117,7 +118,7 @@ export default function FloatingTabBar({
     };
   });
 
-  // Dynamic styles based on theme
+  // Dynamic styles based on color scheme
   const dynamicStyles = {
     blurContainer: {
       ...styles.blurContainer,
@@ -125,17 +126,17 @@ export default function FloatingTabBar({
       borderColor: 'rgba(255, 255, 255, 1)',
       ...Platform.select({
         ios: {
-          backgroundColor: theme.dark
+          backgroundColor: isDark
             ? 'rgba(28, 28, 30, 0.8)'
             : 'rgba(255, 255, 255, 0.6)',
         },
         android: {
-          backgroundColor: theme.dark
+          backgroundColor: isDark
             ? 'rgba(28, 28, 30, 0.95)'
             : 'rgba(255, 255, 255, 0.6)',
         },
         web: {
-          backgroundColor: theme.dark
+          backgroundColor: isDark
             ? 'rgba(28, 28, 30, 0.95)'
             : 'rgba(255, 255, 255, 0.6)',
           backdropFilter: 'blur(10px)',
@@ -147,7 +148,7 @@ export default function FloatingTabBar({
     },
     indicator: {
       ...styles.indicator,
-      backgroundColor: theme.dark
+      backgroundColor: isDark
         ? 'rgba(255, 255, 255, 0.08)' // Subtle white overlay in dark mode
         : 'rgba(0, 0, 0, 0.04)', // Subtle black overlay in light mode
       width: `${tabWidthPercent}%` as `${number}%`, // Dynamic width based on number of tabs
@@ -176,23 +177,22 @@ export default function FloatingTabBar({
               return (
                 <React.Fragment key={index}>
                 <TouchableOpacity
-                  key={index} // Use index as key
                   style={styles.tab}
                   onPress={() => handleTabPress(tab.route)}
                   activeOpacity={0.7}
                 >
-                  <View key={index} style={styles.tabContent}>
+                  <View style={styles.tabContent}>
                     <IconSymbol
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
                       size={24}
-                      color={isActive ? theme.colors.primary : (theme.dark ? '#98989D' : '#000000')}
+                      color={isActive ? colors.primary : (isDark ? '#98989D' : '#000000')}
                     />
                     <Text
                       style={[
                         styles.tabLabel,
-                        { color: theme.dark ? '#98989D' : '#8E8E93' },
-                        isActive && { color: theme.colors.primary, fontWeight: '600' },
+                        { color: isDark ? '#98989D' : '#8E8E93' },
+                        isActive && { color: colors.primary, fontWeight: '600' },
                       ]}
                     >
                       {tab.label}

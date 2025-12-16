@@ -2,8 +2,12 @@
 import { Tabs } from 'expo-router/unstable-native-tabs';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol.ios';
+import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <Tabs
       screenOptions={{

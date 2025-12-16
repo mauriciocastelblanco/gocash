@@ -58,18 +58,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     try {
       console.log('Loading transactions for user:', user.id);
 
+      // Query transactions directly - the table already has main_category_name and subcategory_name columns
       const { data, error } = await supabase
         .from('transactions')
-        .select(`
-          *,
-          main_categories!transactions_main_category_id_fkey (
-            nombre,
-            icono
-          ),
-          subcategories!transactions_subcategory_id_fkey (
-            nombre
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
@@ -79,6 +71,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       }
 
       console.log('Loaded transactions:', data?.length);
+      console.log('Sample transaction:', data?.[0]);
 
       // Transform database transactions to app format
       const transformedTransactions: Transaction[] = (data || []).map((t: any) => ({
@@ -87,15 +80,18 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         description: t.description || '',
         type: t.type as TransactionType,
         mainCategoryId: t.main_category_id || '',
-        mainCategoryName: t.main_categories?.nombre || 'Sin categoría',
+        mainCategoryName: t.main_category_name || 'Sin categoría',
         subcategoryId: t.subcategory_id || '',
-        subcategoryName: t.subcategories?.nombre || 'Sin subcategoría',
+        subcategoryName: t.subcategory_name || 'Sin subcategoría',
         paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
         date: new Date(t.date || t.created_at),
         createdAt: new Date(t.created_at),
         installments: t.installments || undefined,
         installmentNumber: t.installment_number || undefined,
       }));
+
+      console.log('Transformed transactions:', transformedTransactions.length);
+      console.log('Sample transformed:', transformedTransactions[0]);
 
       setTransactions(transformedTransactions);
     } catch (error) {
@@ -173,10 +169,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   };
 
   const getMonthlyTransactions = (year: number, month: number): Transaction[] => {
-    return transactions.filter((t) => {
+    const filtered = transactions.filter((t) => {
       const date = new Date(t.date);
       return date.getFullYear() === year && date.getMonth() === month;
     });
+    console.log(`Monthly transactions for ${year}-${month}:`, filtered.length);
+    return filtered;
   };
 
   const getMonthlyTotal = (
@@ -185,9 +183,11 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     type?: TransactionType
   ): number => {
     const monthlyTransactions = getMonthlyTransactions(year, month);
-    return monthlyTransactions
+    const total = monthlyTransactions
       .filter((t) => !type || t.type === type)
-      .reduce((sum, t) => sum + (t.type === 'expense' ? t.amount : t.amount), 0);
+      .reduce((sum, t) => sum + t.amount, 0);
+    console.log(`Monthly total for ${year}-${month} (${type || 'all'}):`, total);
+    return total;
   };
 
   return (
