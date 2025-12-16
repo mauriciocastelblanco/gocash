@@ -15,16 +15,25 @@ import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useTransactions } from '@/contexts/TransactionContext';
-import { CATEGORIES, TransactionType, PaymentMethod, Category } from '@/types/transaction';
+import { TransactionType, PaymentMethod } from '@/types/transaction';
+import { useCategories } from '@/hooks/useCategories';
+import { CategorySelector } from '@/components/CategorySelector';
 
 export default function NewTransactionScreen() {
   const router = useRouter();
   const { addTransaction } = useTransactions();
+  const {
+    mainCategories,
+    subcategories,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useCategories();
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<TransactionType>('expense');
-  const [selectedCategory, setSelectedCategory] = useState<Category>(CATEGORIES[0]);
+  const [selectedMainCategoryId, setSelectedMainCategoryId] = useState<string | null>(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('debit');
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -42,6 +51,16 @@ export default function NewTransactionScreen() {
       return;
     }
 
+    if (!selectedMainCategoryId) {
+      Alert.alert('Error', 'Por favor selecciona una categoría principal');
+      return;
+    }
+
+    if (!selectedSubcategoryId) {
+      Alert.alert('Error', 'Por favor selecciona una subcategoría');
+      return;
+    }
+
     const installmentsNum = parseInt(installments) || 1;
     if (paymentMethod === 'credit' && (installmentsNum < 1 || installmentsNum > 48)) {
       Alert.alert('Error', 'El número de cuotas debe estar entre 1 y 48');
@@ -54,7 +73,8 @@ export default function NewTransactionScreen() {
         amount: parseFloat(amount),
         description: description.trim(),
         type,
-        category: selectedCategory,
+        mainCategoryId: selectedMainCategoryId,
+        subcategoryId: selectedSubcategoryId,
         paymentMethod,
         date,
         installments: paymentMethod === 'credit' ? installmentsNum : undefined,
@@ -95,9 +115,63 @@ export default function NewTransactionScreen() {
           <Text style={styles.title}>Nueva Transacción</Text>
         </View>
 
+        {categoriesError && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Error al cargar categorías: {categoriesError}</Text>
+          </View>
+        )}
+
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Monto</Text>
+            <Text style={commonStyles.inputLabel}>Tipo</Text>
+            <View style={styles.segmentedControl}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  type === 'expense' && styles.segmentButtonActive,
+                ]}
+                onPress={() => {
+                  setType('expense');
+                  setSelectedMainCategoryId(null);
+                  setSelectedSubcategoryId(null);
+                }}
+                disabled={isLoading}
+              >
+                <Text
+                  style={[
+                    styles.segmentButtonText,
+                    type === 'expense' && styles.segmentButtonTextActive,
+                  ]}
+                >
+                  💸 Gasto
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  type === 'income' && styles.segmentButtonActive,
+                ]}
+                onPress={() => {
+                  setType('income');
+                  setSelectedMainCategoryId(null);
+                  setSelectedSubcategoryId(null);
+                }}
+                disabled={isLoading}
+              >
+                <Text
+                  style={[
+                    styles.segmentButtonText,
+                    type === 'income' && styles.segmentButtonTextActive,
+                  ]}
+                >
+                  💰 Ingreso
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={commonStyles.inputLabel}>Monto *</Text>
             <TextInput
               style={[commonStyles.input, styles.amountInput]}
               placeholder="0"
@@ -110,7 +184,7 @@ export default function NewTransactionScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Descripción</Text>
+            <Text style={commonStyles.inputLabel}>Descripción *</Text>
             <TextInput
               style={commonStyles.input}
               placeholder="Ej: Compra en supermercado"
@@ -121,76 +195,16 @@ export default function NewTransactionScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Tipo</Text>
-            <View style={styles.segmentedControl}>
-              <TouchableOpacity
-                style={[
-                  styles.segmentButton,
-                  type === 'expense' && styles.segmentButtonActive,
-                ]}
-                onPress={() => setType('expense')}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    type === 'expense' && styles.segmentButtonTextActive,
-                  ]}
-                >
-                  Gasto
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.segmentButton,
-                  type === 'income' && styles.segmentButtonActive,
-                ]}
-                onPress={() => setType('income')}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    type === 'income' && styles.segmentButtonTextActive,
-                  ]}
-                >
-                  Ingreso
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Categoría</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoriesScroll}
-            >
-              {CATEGORIES.map((category, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.categoryButton,
-                    selectedCategory.id === category.id && styles.categoryButtonActive,
-                  ]}
-                  onPress={() => setSelectedCategory(category)}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.categoryName,
-                      selectedCategory.id === category.id && styles.categoryNameActive,
-                    ]}
-                  >
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          <CategorySelector
+            mainCategories={mainCategories}
+            subcategories={subcategories}
+            selectedMainCategoryId={selectedMainCategoryId}
+            selectedSubcategoryId={selectedSubcategoryId}
+            onMainCategorySelect={setSelectedMainCategoryId}
+            onSubcategorySelect={setSelectedSubcategoryId}
+            type={type}
+            isLoading={categoriesLoading}
+          />
 
           <View style={styles.inputGroup}>
             <Text style={commonStyles.inputLabel}>Método de pago</Text>
@@ -212,7 +226,7 @@ export default function NewTransactionScreen() {
                     paymentMethod === 'debit' && styles.paymentButtonTextActive,
                   ]}
                 >
-                  Débito
+                  🏦 Débito
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -229,7 +243,7 @@ export default function NewTransactionScreen() {
                     paymentMethod === 'credit' && styles.paymentButtonTextActive,
                   ]}
                 >
-                  Crédito
+                  💳 Crédito
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -249,7 +263,7 @@ export default function NewTransactionScreen() {
                     paymentMethod === 'cash' && styles.paymentButtonTextActive,
                   ]}
                 >
-                  Efectivo
+                  💵 Efectivo
                 </Text>
               </TouchableOpacity>
             </View>
@@ -284,7 +298,7 @@ export default function NewTransactionScreen() {
               onPress={() => setShowDatePicker(true)}
               disabled={isLoading}
             >
-              <Text style={styles.dateButtonText}>{formatDate(date)}</Text>
+              <Text style={styles.dateButtonText}>📅 {formatDate(date)}</Text>
             </TouchableOpacity>
           </View>
 
@@ -343,6 +357,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  errorContainer: {
+    backgroundColor: '#ff4444',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 14,
+  },
   form: {
     width: '100%',
   },
@@ -375,38 +399,6 @@ const styles = StyleSheet.create({
   },
   segmentButtonTextActive: {
     color: colors.background,
-  },
-  categoriesScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  categoryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 12,
-    minWidth: 80,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.card,
-  },
-  categoryEmoji: {
-    fontSize: 32,
-    marginBottom: 4,
-  },
-  categoryName: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  categoryNameActive: {
-    color: colors.text,
-    fontWeight: '600',
   },
   paymentMethods: {
     flexDirection: 'row',

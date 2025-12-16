@@ -2,10 +2,20 @@
 export type TransactionType = 'expense' | 'income';
 export type PaymentMethod = 'debit' | 'credit' | 'cash';
 
-export interface Category {
+export interface MainCategory {
   id: string;
-  name: string;
-  emoji: string;
+  nombre: string;
+  tipo: 'expense' | 'income';
+  icono: string | null;
+}
+
+export interface Subcategory {
+  id: string;
+  main_category_id: string;
+  nombre: string;
+  tipo: 'expense' | 'income';
+  user_id: string | null;
+  workspace_id: string | null;
 }
 
 export interface Transaction {
@@ -13,21 +23,13 @@ export interface Transaction {
   amount: number;
   description: string;
   type: TransactionType;
-  category: Category;
+  mainCategoryId: string;
+  mainCategoryName: string;
+  subcategoryId: string;
+  subcategoryName: string;
   paymentMethod: PaymentMethod;
   date: Date;
   createdAt: Date;
   installments?: number;
   installmentNumber?: number;
 }
-
-export const CATEGORIES: Category[] = [
-  { id: 'supermarket', name: 'Supermercado', emoji: '🛒' },
-  { id: 'restaurant', name: 'Restaurante', emoji: '🍽️' },
-  { id: 'transport', name: 'Transporte', emoji: '🚗' },
-  { id: 'health', name: 'Salud', emoji: '💊' },
-  { id: 'entertainment', name: 'Entretenimiento', emoji: '🎬' },
-  { id: 'home', name: 'Hogar', emoji: '🏠' },
-  { id: 'education', name: 'Educación', emoji: '📚' },
-  { id: 'other', name: 'Otros', emoji: '💰' },
-];

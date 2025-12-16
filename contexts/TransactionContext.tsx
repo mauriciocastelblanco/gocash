@@ -7,18 +7,15 @@ import { saveTransaction } from '@/lib/transactions';
 export type TransactionType = 'expense' | 'income';
 export type PaymentMethod = 'debit' | 'credit' | 'cash';
 
-interface Category {
-  id: string;
-  name: string;
-  emoji: string;
-}
-
 interface Transaction {
   id: string;
   amount: number;
   description: string;
   type: TransactionType;
-  category: Category;
+  mainCategoryId: string;
+  mainCategoryName: string;
+  subcategoryId: string;
+  subcategoryName: string;
   paymentMethod: PaymentMethod;
   date: Date;
   createdAt: Date;
@@ -29,7 +26,7 @@ interface Transaction {
 interface TransactionContextType {
   transactions: Transaction[];
   isLoading: boolean;
-  addTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt'>) => Promise<void>;
+  addTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt' | 'mainCategoryName' | 'subcategoryName'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   getMonthlyTransactions: (year: number, month: number) => Transaction[];
   getMonthlyTotal: (year: number, month: number, type?: TransactionType) => number;
@@ -80,11 +77,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         amount: parseFloat(t.amount),
         description: t.description || '',
         type: t.type as TransactionType,
-        category: {
-          id: t.main_category_id || 'other',
-          name: t.main_category_name || 'Otros',
-          emoji: '💰',
-        },
+        mainCategoryId: t.main_category_id || '',
+        mainCategoryName: t.main_category_name || 'Sin categoría',
+        subcategoryId: t.subcategory_id || '',
+        subcategoryName: t.subcategory_name || 'Sin subcategoría',
         paymentMethod: (t.payment_method_type || 'cash') as PaymentMethod,
         date: new Date(t.date || t.created_at),
         createdAt: new Date(t.created_at),
@@ -105,7 +101,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   };
 
   const addTransaction = async (
-    transaction: Omit<Transaction, 'id' | 'createdAt'>
+    transaction: Omit<Transaction, 'id' | 'createdAt' | 'mainCategoryName' | 'subcategoryName'>
   ) => {
     if (!user) {
       throw new Error('User not authenticated');
@@ -124,7 +120,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         amount: transaction.amount,
         description: transaction.description,
         date: dateStr,
-        subcategoryId: null, // We don't have subcategory mapping yet
+        subcategoryId: transaction.subcategoryId,
         paymentMethodType: transaction.paymentMethod,
         installments: transaction.installments,
         workspaceId: null, // Will be auto-fetched by the library
