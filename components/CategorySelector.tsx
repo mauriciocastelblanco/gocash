@@ -9,10 +9,13 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/styles/commonStyles';
 import { MainCategory, Subcategory } from '@/hooks/useCategories';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface CategorySelectorProps {
   mainCategories: MainCategory[];
@@ -159,7 +162,7 @@ export function CategorySelector({
           console.log('[CategorySelector] Closing main category modal');
           setShowMainCategoryModal(false);
         }}
-        statusBarTranslucent={Platform.OS === 'android'}
+        statusBarTranslucent={true}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
@@ -167,41 +170,47 @@ export function CategorySelector({
             activeOpacity={1}
             onPress={() => setShowMainCategoryModal(false)}
           />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Seleccionar Categoría</Text>
-              <TouchableOpacity 
-                onPress={() => setShowMainCategoryModal(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          <View style={styles.modalContentWrapper}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Seleccionar Categoría</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowMainCategoryModal(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView 
+                style={styles.modalScroll} 
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
+                {filteredMainCategories.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>No hay categorías disponibles</Text>
+                  </View>
+                ) : (
+                  filteredMainCategories.map((category) => (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.modalItem,
+                        selectedMainCategoryId === category.id && styles.modalItemSelected,
+                      ]}
+                      onPress={() => handleMainCategorySelect(category.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.modalItemEmoji}>{category.icono || '📁'}</Text>
+                      <Text style={styles.modalItemText}>{category.nombre}</Text>
+                      {selectedMainCategoryId === category.id && (
+                        <Text style={styles.checkmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
             </View>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {filteredMainCategories.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>No hay categorías disponibles</Text>
-                </View>
-              ) : (
-                filteredMainCategories.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.modalItem,
-                      selectedMainCategoryId === category.id && styles.modalItemSelected,
-                    ]}
-                    onPress={() => handleMainCategorySelect(category.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.modalItemEmoji}>{category.icono || '📁'}</Text>
-                    <Text style={styles.modalItemText}>{category.nombre}</Text>
-                    {selectedMainCategoryId === category.id && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -215,7 +224,7 @@ export function CategorySelector({
           console.log('[CategorySelector] Closing subcategory modal');
           setShowSubcategoryModal(false);
         }}
-        statusBarTranslucent={Platform.OS === 'android'}
+        statusBarTranslucent={true}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
@@ -223,40 +232,46 @@ export function CategorySelector({
             activeOpacity={1}
             onPress={() => setShowSubcategoryModal(false)}
           />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Seleccionar Subcategoría</Text>
-              <TouchableOpacity 
-                onPress={() => setShowSubcategoryModal(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          <View style={styles.modalContentWrapper}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Seleccionar Subcategoría</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowSubcategoryModal(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView 
+                style={styles.modalScroll} 
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
+                {filteredSubcategories.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>No hay subcategorías disponibles</Text>
+                  </View>
+                ) : (
+                  filteredSubcategories.map((subcategory) => (
+                    <TouchableOpacity
+                      key={subcategory.id}
+                      style={[
+                        styles.modalItem,
+                        selectedSubcategoryId === subcategory.id && styles.modalItemSelected,
+                      ]}
+                      onPress={() => handleSubcategorySelect(subcategory.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.modalItemText}>{subcategory.nombre}</Text>
+                      {selectedSubcategoryId === subcategory.id && (
+                        <Text style={styles.checkmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
             </View>
-            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-              {filteredSubcategories.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>No hay subcategorías disponibles</Text>
-                </View>
-              ) : (
-                filteredSubcategories.map((subcategory) => (
-                  <TouchableOpacity
-                    key={subcategory.id}
-                    style={[
-                      styles.modalItem,
-                      selectedSubcategoryId === subcategory.id && styles.modalItemSelected,
-                    ]}
-                    onPress={() => handleSubcategorySelect(subcategory.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.modalItemText}>{subcategory.nombre}</Text>
-                    {selectedSubcategoryId === subcategory.id && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -326,39 +341,64 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'flex-end',
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalContentWrapper: {
+    maxHeight: SCREEN_HEIGHT * 0.7,
+    zIndex: 100000,
+    elevation: 100000,
   },
   modalContent: {
     backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    paddingBottom: 40,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 24,
+      },
+    }),
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
   modalClose: {
-    fontSize: 24,
+    fontSize: 28,
     color: colors.textSecondary,
     fontWeight: '300',
+    lineHeight: 28,
   },
   modalScroll: {
-    flex: 1,
+    maxHeight: SCREEN_HEIGHT * 0.5,
+  },
+  modalScrollContent: {
+    paddingBottom: 20,
   },
   emptyState: {
     padding: 40,
@@ -372,24 +412,27 @@ const styles = StyleSheet.create({
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   modalItemSelected: {
     backgroundColor: colors.card,
   },
   modalItemEmoji: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 28,
+    marginRight: 16,
   },
   modalItemText: {
-    fontSize: 16,
+    fontSize: 17,
     color: colors.text,
     flex: 1,
+    fontWeight: '500',
   },
   checkmark: {
-    fontSize: 20,
+    fontSize: 24,
     color: colors.primary,
     fontWeight: '700',
   },

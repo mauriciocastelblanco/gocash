@@ -17,7 +17,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
@@ -138,6 +137,7 @@ export default function NewTransactionScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           <Text style={styles.title}>Nueva Transacción</Text>
@@ -388,14 +388,15 @@ export default function NewTransactionScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'android' ? 48 : 0,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingTop: 20,
+    paddingBottom: 140,
   },
   header: {
     marginBottom: 24,

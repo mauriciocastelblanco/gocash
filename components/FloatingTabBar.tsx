@@ -208,7 +208,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 9999,
+    zIndex: 999999,
+    elevation: 999999,
     alignItems: 'center',
     pointerEvents: 'box-none',
   },
@@ -216,9 +217,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     alignSelf: 'center',
     pointerEvents: 'auto',
+    zIndex: 999999,
+    elevation: 999999,
   },
   blurContainer: {
     overflow: 'hidden',
+    zIndex: 999999,
+    elevation: 999999,
   },
   background: {
     ...StyleSheet.absoluteFillObject,
