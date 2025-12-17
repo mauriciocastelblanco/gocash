@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,26 @@ export default function HomeScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const { transactions, getMonthlyTotal, getMonthlyTransactions, isLoading, refreshTransactions } = useTransactions();
   const [refreshing, setRefreshing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    console.log('[HomeScreen] Component mounted');
+    setMounted(true);
+    return () => {
+      console.log('[HomeScreen] Component unmounted');
+      setMounted(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('[HomeScreen] State:', {
+      mounted,
+      authLoading,
+      hasUser: !!user,
+      isLoading,
+      transactionCount: transactions.length,
+    });
+  }, [mounted, authLoading, user, isLoading, transactions.length]);
 
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -32,6 +52,7 @@ export default function HomeScreen() {
   ];
 
   const onRefresh = async () => {
+    console.log('[HomeScreen] Refreshing...');
     setRefreshing(true);
     try {
       await refreshTransactions();
@@ -76,7 +97,8 @@ export default function HomeScreen() {
   };
 
   // Show loading only on first load
-  if (authLoading || (isLoading && transactions.length === 0)) {
+  if (!mounted || authLoading || (isLoading && transactions.length === 0)) {
+    console.log('[HomeScreen] Showing loading state');
     return (
       <View style={[commonStyles.container, styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -84,6 +106,8 @@ export default function HomeScreen() {
       </View>
     );
   }
+
+  console.log('[HomeScreen] Rendering main content');
 
   return (
     <View style={[commonStyles.container, styles.container]}>

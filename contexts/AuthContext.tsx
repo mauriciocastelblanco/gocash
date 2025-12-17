@@ -2,7 +2,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
-import { useRouter, useSegments } from 'expo-router';
 
 interface AuthContextType {
   user: User | null;
@@ -19,8 +18,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-  const segments = useSegments();
 
   useEffect(() => {
     console.log('[AuthContext] Initializing auth...');
@@ -49,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('[AuthContext] Auth state changed:', _event);
+      console.log('[AuthContext] Auth state changed:', _event, session ? 'has session' : 'no session');
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -60,35 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
-
-  // Handle navigation based on auth state
-  useEffect(() => {
-    if (isLoading) {
-      console.log('[AuthContext] Still loading, skipping navigation');
-      return;
-    }
-
-    const inAuthGroup = segments[0] === '(tabs)';
-    
-    console.log('[AuthContext] Navigation check:', {
-      hasUser: !!user,
-      inAuthGroup,
-      segments: segments.join('/'),
-    });
-
-    // Use setTimeout to avoid navigation during render
-    const timer = setTimeout(() => {
-      if (!user && inAuthGroup) {
-        console.log('[AuthContext] No user, redirecting to login');
-        router.replace('/login');
-      } else if (user && !inAuthGroup) {
-        console.log('[AuthContext] User logged in, redirecting to home');
-        router.replace('/(tabs)/(home)');
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [user, isLoading, segments]);
 
   const signIn = async (email: string, password: string) => {
     try {

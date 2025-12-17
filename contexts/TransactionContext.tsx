@@ -26,6 +26,7 @@ interface Transaction {
 interface TransactionContextType {
   transactions: Transaction[];
   isLoading: boolean;
+  error: Error | null;
   addTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt' | 'mainCategoryName' | 'subcategoryName'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   getMonthlyTransactions: (year: number, month: number) => Transaction[];
@@ -38,6 +39,7 @@ const TransactionContext = createContext<TransactionContextType | undefined>(und
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const { user, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       console.log('[TransactionContext] No user, clearing transactions');
       setTransactions([]);
       setIsLoading(false);
+      setError(null);
     }
   }, [user, authLoading]);
 
@@ -65,18 +68,20 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
 
     setIsLoading(true);
+    setError(null);
+    
     try {
       console.log('[TransactionContext] Fetching transactions for user:', user.id);
 
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('transactions')
         .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
-      if (error) {
-        console.error('[TransactionContext] Error loading transactions:', error);
-        // Don't throw, just log and continue
+      if (fetchError) {
+        console.error('[TransactionContext] Error loading transactions:', fetchError);
+        setError(fetchError);
         setTransactions([]);
         return;
       }
@@ -100,8 +105,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       }));
 
       setTransactions(transformedTransactions);
-    } catch (error) {
-      console.error('[TransactionContext] Error:', error);
+    } catch (err) {
+      console.error('[TransactionContext] Error:', err);
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      setError(error);
       setTransactions([]);
     } finally {
       setIsLoading(false);
@@ -139,9 +146,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
       console.log('[TransactionContext] Transaction added');
       await loadTransactions();
-    } catch (error) {
-      console.error('[TransactionContext] Error adding transaction:', error);
-      throw error;
+    } catch (err) {
+      console.error('[TransactionContext] Error adding transaction:', err);
+      throw err;
     }
   };
 
@@ -153,22 +160,22 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     try {
       console.log('[TransactionContext] Deleting transaction:', id);
 
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('transactions')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('[TransactionContext] Error deleting:', error);
-        throw error;
+      if (deleteError) {
+        console.error('[TransactionContext] Error deleting:', deleteError);
+        throw deleteError;
       }
 
       console.log('[TransactionContext] Transaction deleted');
       setTransactions((prev) => prev.filter((t) => t.id !== id));
-    } catch (error) {
-      console.error('[TransactionContext] Error:', error);
-      throw error;
+    } catch (err) {
+      console.error('[TransactionContext] Error:', err);
+      throw err;
     }
   };
 
@@ -198,12 +205,19 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const value = {
     transactions,
     isLoading,
+    error,
     addTransaction,
     deleteTransaction,
     getMonthlyTransactions,
     getMonthlyTotal,
     refreshTransactions,
   };
+
+  console.log('[TransactionContext] Rendering with state:', {
+    transactionCount: transactions.length,
+    isLoading,
+    hasError: !!error,
+  });
 
   return (
     <TransactionContext.Provider value={value}>

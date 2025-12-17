@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { TransactionProvider } from '@/contexts/TransactionContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,14 +27,16 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <TransactionProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="login" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      </TransactionProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <TransactionProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="login" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
+        </TransactionProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
