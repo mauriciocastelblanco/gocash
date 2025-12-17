@@ -13,6 +13,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { TransactionType, PaymentMethod } from '@/types/transaction';
@@ -40,33 +47,46 @@ export default function NewTransactionScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [installments, setInstallments] = useState('1');
 
+  const buttonScale = useSharedValue(1);
+
   const handleSubmit = async () => {
     if (!amount || parseFloat(amount) <= 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Por favor ingresa un monto válido');
       return;
     }
 
     if (!description.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Por favor ingresa una descripción');
       return;
     }
 
     if (!selectedMainCategoryId) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Por favor selecciona una categoría principal');
       return;
     }
 
     if (!selectedSubcategoryId) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Por favor selecciona una subcategoría');
       return;
     }
 
     const installmentsNum = parseInt(installments) || 1;
     if (paymentMethod === 'credit' && (installmentsNum < 1 || installmentsNum > 48)) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'El número de cuotas debe estar entre 1 y 48');
       return;
     }
 
+    buttonScale.value = withSpring(0.95, { damping: 10 });
+    setTimeout(() => {
+      buttonScale.value = withSpring(1, { damping: 10 });
+    }, 100);
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoading(true);
     try {
       await addTransaction({
@@ -80,6 +100,7 @@ export default function NewTransactionScreen() {
         installments: paymentMethod === 'credit' ? installmentsNum : undefined,
       });
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Éxito', 'Transacción agregada correctamente', [
         {
           text: 'OK',
@@ -90,6 +111,7 @@ export default function NewTransactionScreen() {
       ]);
     } catch (error: any) {
       console.error('Error adding transaction:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', error?.message || 'No se pudo agregar la transacción');
     } finally {
       setIsLoading(false);
@@ -99,10 +121,16 @@ export default function NewTransactionScreen() {
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('es-CL', {
       day: '2-digit',
-      month: 'long',
+      month: 'short',
       year: 'numeric',
     });
   };
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
 
   return (
     <View style={[commonStyles.container, styles.container]}>
@@ -113,17 +141,18 @@ export default function NewTransactionScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Nueva Transacción</Text>
+          <Text style={styles.subtitle}>Registra tu gasto o ingreso</Text>
         </View>
 
         {categoriesError && (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Error al cargar categorías: {categoriesError}</Text>
+            <Text style={styles.errorText}>⚠️ Error al cargar categorías: {categoriesError}</Text>
           </View>
         )}
 
         <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Tipo</Text>
+          {/* Type Selector - Compact */}
+          <View style={styles.compactSection}>
             <View style={styles.segmentedControl}>
               <TouchableOpacity
                 style={[
@@ -134,6 +163,7 @@ export default function NewTransactionScreen() {
                   setType('expense');
                   setSelectedMainCategoryId(null);
                   setSelectedSubcategoryId(null);
+                  Haptics.selectionAsync();
                 }}
                 disabled={isLoading}
               >
@@ -155,6 +185,7 @@ export default function NewTransactionScreen() {
                   setType('income');
                   setSelectedMainCategoryId(null);
                   setSelectedSubcategoryId(null);
+                  Haptics.selectionAsync();
                 }}
                 disabled={isLoading}
               >
@@ -170,10 +201,11 @@ export default function NewTransactionScreen() {
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Monto *</Text>
+          {/* Amount Input - Prominent */}
+          <View style={styles.amountSection}>
+            <Text style={styles.currencySymbol}>$</Text>
             <TextInput
-              style={[commonStyles.input, styles.amountInput]}
+              style={styles.amountInput}
               placeholder="0"
               placeholderTextColor={colors.textSecondary}
               value={amount}
@@ -183,11 +215,11 @@ export default function NewTransactionScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Descripción *</Text>
+          {/* Description - Compact */}
+          <View style={styles.compactInputGroup}>
             <TextInput
-              style={commonStyles.input}
-              placeholder="Ej: Compra en supermercado"
+              style={styles.descriptionInput}
+              placeholder="Descripción (ej: Compra en supermercado)"
               placeholderTextColor={colors.textSecondary}
               value={description}
               onChangeText={setDescription}
@@ -195,6 +227,7 @@ export default function NewTransactionScreen() {
             />
           </View>
 
+          {/* Category Selector */}
           <CategorySelector
             mainCategories={mainCategories}
             subcategories={subcategories}
@@ -206,101 +239,113 @@ export default function NewTransactionScreen() {
             isLoading={categoriesLoading}
           />
 
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Método de pago</Text>
-            <View style={styles.paymentMethods}>
+          {/* Payment Method - Compact Grid */}
+          <View style={styles.compactSection}>
+            <Text style={styles.sectionLabel}>Método de pago</Text>
+            <View style={styles.paymentGrid}>
               <TouchableOpacity
                 style={[
-                  styles.paymentButton,
-                  paymentMethod === 'debit' && styles.paymentButtonActive,
+                  styles.paymentCard,
+                  paymentMethod === 'debit' && styles.paymentCardActive,
                 ]}
                 onPress={() => {
                   setPaymentMethod('debit');
                   setInstallments('1');
+                  Haptics.selectionAsync();
                 }}
                 disabled={isLoading}
               >
+                <Text style={styles.paymentIcon}>🏦</Text>
                 <Text
                   style={[
-                    styles.paymentButtonText,
-                    paymentMethod === 'debit' && styles.paymentButtonTextActive,
+                    styles.paymentLabel,
+                    paymentMethod === 'debit' && styles.paymentLabelActive,
                   ]}
                 >
-                  🏦 Débito
+                  Débito
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
-                  styles.paymentButton,
-                  paymentMethod === 'credit' && styles.paymentButtonActive,
+                  styles.paymentCard,
+                  paymentMethod === 'credit' && styles.paymentCardActive,
                 ]}
-                onPress={() => setPaymentMethod('credit')}
+                onPress={() => {
+                  setPaymentMethod('credit');
+                  Haptics.selectionAsync();
+                }}
                 disabled={isLoading}
               >
+                <Text style={styles.paymentIcon}>💳</Text>
                 <Text
                   style={[
-                    styles.paymentButtonText,
-                    paymentMethod === 'credit' && styles.paymentButtonTextActive,
+                    styles.paymentLabel,
+                    paymentMethod === 'credit' && styles.paymentLabelActive,
                   ]}
                 >
-                  💳 Crédito
+                  Crédito
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
-                  styles.paymentButton,
-                  paymentMethod === 'cash' && styles.paymentButtonActive,
+                  styles.paymentCard,
+                  paymentMethod === 'cash' && styles.paymentCardActive,
                 ]}
                 onPress={() => {
                   setPaymentMethod('cash');
                   setInstallments('1');
+                  Haptics.selectionAsync();
                 }}
                 disabled={isLoading}
               >
+                <Text style={styles.paymentIcon}>💵</Text>
                 <Text
                   style={[
-                    styles.paymentButtonText,
-                    paymentMethod === 'cash' && styles.paymentButtonTextActive,
+                    styles.paymentLabel,
+                    paymentMethod === 'cash' && styles.paymentLabelActive,
                   ]}
                 >
-                  💵 Efectivo
+                  Efectivo
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* Installments - Only show for credit */}
           {paymentMethod === 'credit' && (
-            <View style={styles.inputGroup}>
-              <Text style={commonStyles.inputLabel}>Número de cuotas</Text>
-              <TextInput
-                style={commonStyles.input}
-                placeholder="1"
-                placeholderTextColor={colors.textSecondary}
-                value={installments}
-                onChangeText={setInstallments}
-                keyboardType="number-pad"
-                editable={!isLoading}
-              />
-              <Text style={styles.helperText}>
-                {parseInt(installments) > 1
-                  ? `${parseInt(installments)} cuotas de $${(
-                      parseFloat(amount || '0') / parseInt(installments)
-                    ).toFixed(0)}`
-                  : 'Ingresa el número de cuotas (1-48)'}
-              </Text>
+            <View style={styles.compactInputGroup}>
+              <View style={styles.installmentsRow}>
+                <Text style={styles.installmentsLabel}>Cuotas:</Text>
+                <TextInput
+                  style={styles.installmentsInput}
+                  placeholder="1"
+                  placeholderTextColor={colors.textSecondary}
+                  value={installments}
+                  onChangeText={setInstallments}
+                  keyboardType="number-pad"
+                  editable={!isLoading}
+                />
+                {parseInt(installments) > 1 && (
+                  <Text style={styles.installmentsInfo}>
+                    ${(parseFloat(amount || '0') / parseInt(installments)).toFixed(0)}/mes
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
-          <View style={styles.inputGroup}>
-            <Text style={commonStyles.inputLabel}>Fecha</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-              disabled={isLoading}
-            >
-              <Text style={styles.dateButtonText}>📅 {formatDate(date)}</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Date Picker - Compact */}
+          <TouchableOpacity
+            style={styles.dateCard}
+            onPress={() => {
+              setShowDatePicker(true);
+              Haptics.selectionAsync();
+            }}
+            disabled={isLoading}
+          >
+            <Text style={styles.dateIcon}>📅</Text>
+            <Text style={styles.dateText}>{formatDate(date)}</Text>
+          </TouchableOpacity>
 
           {showDatePicker && (
             <DateTimePicker
@@ -317,21 +362,24 @@ export default function NewTransactionScreen() {
             />
           )}
 
-          <TouchableOpacity
-            style={[
-              buttonStyles.primaryButton,
-              styles.submitButton,
-              isLoading && styles.disabledButton,
-            ]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.background} />
-            ) : (
-              <Text style={buttonStyles.primaryButtonText}>Guardar Transacción</Text>
-            )}
-          </TouchableOpacity>
+          <Animated.View style={buttonAnimatedStyle}>
+            <TouchableOpacity
+              style={[
+                buttonStyles.primaryButton,
+                styles.submitButton,
+                isLoading && styles.disabledButton,
+              ]}
+              onPress={handleSubmit}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={buttonStyles.primaryButtonText}>✓ Guardar Transacción</Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </ScrollView>
     </View>
@@ -353,98 +401,184 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   errorContainer: {
-    backgroundColor: '#ff4444',
+    backgroundColor: 'rgba(255, 68, 68, 0.15)',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#ff4444',
   },
   errorText: {
-    color: '#fff',
-    fontSize: 14,
+    color: '#ff6b6b',
+    fontSize: 13,
   },
   form: {
     width: '100%',
   },
-  inputGroup: {
-    marginBottom: 24,
+  compactSection: {
+    marginBottom: 16,
   },
-  amountInput: {
-    fontSize: 24,
+  sectionLabel: {
+    fontSize: 13,
     fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   segmentedControl: {
     flexDirection: 'row',
     backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
-    padding: 4,
+    padding: 3,
   },
   segmentButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 9,
   },
   segmentButtonActive: {
     backgroundColor: colors.primary,
   },
   segmentButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.textSecondary,
   },
   segmentButtonTextActive: {
     color: colors.background,
   },
-  paymentMethods: {
+  amountSection: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  paymentButton: {
-    flex: 1,
-    paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  paymentButtonActive: {
-    borderColor: colors.primary,
     backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
-  paymentButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  currencySymbol: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.primary,
+    marginRight: 8,
   },
-  paymentButtonTextActive: {
+  amountInput: {
+    flex: 1,
+    fontSize: 32,
+    fontWeight: '700',
     color: colors.text,
+    padding: 0,
   },
-  dateButton: {
+  compactInputGroup: {
+    marginBottom: 16,
+  },
+  descriptionInput: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
+    fontSize: 15,
+    color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  dateButtonText: {
-    fontSize: 16,
+  paymentGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  paymentCard: {
+    flex: 1,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  paymentCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.card,
+  },
+  paymentIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  paymentLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  paymentLabelActive: {
     color: colors.text,
+  },
+  installmentsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  installmentsLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginRight: 12,
+  },
+  installmentsInput: {
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: colors.text,
+    width: 60,
+    textAlign: 'center',
+    marginRight: 12,
+  },
+  installmentsInfo: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  dateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dateIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  dateText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '500',
   },
   submitButton: {
     marginTop: 8,
   },
   disabledButton: {
     opacity: 0.6,
-  },
-  helperText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 8,
   },
 });

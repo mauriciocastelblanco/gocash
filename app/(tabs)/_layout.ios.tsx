@@ -1,43 +1,41 @@
 
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol.ios';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
     <NativeTabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+      tintColor={colors.primary}
+      backgroundColor={colors.background}
+      blurEffect="systemChromeMaterialDark"
+      labelStyle={{
+        color: colors.textSecondary,
+        fontSize: 11,
+        fontWeight: '600',
       }}
     >
-      <NativeTabs.Screen
-        name="(home)"
-        options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol ios_icon_name="house.fill" android_material_icon_name="home" size={24} color={color} />
-          ),
-        }}
-      />
-      <NativeTabs.Screen
-        name="new-transaction"
-        options={{
-          title: 'Nueva',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol ios_icon_name="plus.circle.fill" android_material_icon_name="add_circle" size={24} color={color} />
-          ),
-        }}
-      />
-      <NativeTabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol ios_icon_name="person.fill" android_material_icon_name="person" size={24} color={color} />
-          ),
-        }}
-      />
+      <NativeTabs.Trigger name="(home)">
+        <Icon 
+          sf={{ default: 'house', selected: 'house.fill' }} 
+          drawable="home"
+        />
+        <Label>Inicio</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="new-transaction">
+        <Icon 
+          sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} 
+          drawable="add_circle"
+        />
+        <Label>Nueva</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon 
+          sf={{ default: 'person', selected: 'person.fill' }} 
+          drawable="person"
+        />
+        <Label>Perfil</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
