@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,22 @@ import {
 } from 'react-native';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+  const router = useRouter();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      console.log('[LoginScreen] User already logged in, redirecting');
+      router.replace('/(tabs)/(home)');
+    }
+  }, [user]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -30,7 +40,7 @@ export default function LoginScreen() {
       console.log('[LoginScreen] Attempting login...');
       await signIn(email, password);
       console.log('[LoginScreen] Login successful');
-      // Navigation will happen automatically via the layout
+      // Navigation will happen automatically via AuthContext
     } catch (error: any) {
       console.error('[LoginScreen] Login error:', error);
       

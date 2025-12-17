@@ -54,6 +54,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     } else if (!authLoading && !user) {
       console.log('[TransactionContext] No user, clearing transactions');
       setTransactions([]);
+      setIsLoading(false);
     }
   }, [user, authLoading]);
 
@@ -75,7 +76,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
       if (error) {
         console.error('[TransactionContext] Error loading transactions:', error);
-        throw error;
+        // Don't throw, just log and continue
+        setTransactions([]);
+        return;
       }
 
       console.log('[TransactionContext] Loaded', data?.length || 0, 'transactions');

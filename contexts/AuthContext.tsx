@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { useRouter, useSegments } from 'expo-router';
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +19,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     console.log('[AuthContext] Initializing auth...');
@@ -49,11 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[AuthContext] Auth state changed:', _event);
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // Make sure we're not loading after auth state changes
-      if (isLoading) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     });
 
     return () => {
@@ -61,6 +60,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Handle navigation based on auth state
+  useEffect(() => {
+    if (isLoading) {
+      console.log('[AuthContext] Still loading, skipping navigation');
+      return;
+    }
+
+    const inAuthGroup = segments[0] === '(tabs)';
+    
+    console.log('[AuthContext] Navigation check:', {
+      hasUser: !!user,
+      inAuthGroup,
+      segments: segments.join('/'),
+    });
+
+    // Use setTimeout to avoid navigation during render
+    const timer = setTimeout(() => {
+      if (!user && inAuthGroup) {
+        console.log('[AuthContext] No user, redirecting to login');
+        router.replace('/login');
+      } else if (user && !inAuthGroup) {
+        console.log('[AuthContext] User logged in, redirecting to home');
+        router.replace('/(tabs)/(home)');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [user, isLoading, segments]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -136,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
   };
 
-  console.log('[AuthContext] Current state:', {
+  console.log('[AuthContext] Rendering with state:', {
     hasUser: !!user,
     isLoading,
     userId: user?.id,
