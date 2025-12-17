@@ -179,13 +179,13 @@ export default function FloatingTabBar({
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
                       size={26}
-                      color={isActive ? colors.primary : (isDark ? '#98989D' : '#6B6B6B')}
+                      color="#FFFFFF"
                     />
                     <Text
                       style={[
                         styles.tabLabel,
-                        { color: isDark ? '#98989D' : '#6B6B6B' },
-                        isActive && { color: colors.primary, fontWeight: '700' },
+                        { color: '#FFFFFF' },
+                        isActive && { fontWeight: '700' },
                       ]}
                     >
                       {tab.label}
@@ -208,12 +208,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 1000,
+    zIndex: 9999,
     alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   container: {
     marginHorizontal: 20,
     alignSelf: 'center',
+    pointerEvents: 'auto',
   },
   blurContainer: {
     overflow: 'hidden',

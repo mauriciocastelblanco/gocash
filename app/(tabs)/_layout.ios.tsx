@@ -6,11 +6,11 @@ import { Platform } from 'react-native';
 export default function TabLayout() {
   return (
     <NativeTabs
-      tintColor={colors.primary}
+      tintColor="#FFFFFF"
       backgroundColor={colors.background}
       blurEffect="systemChromeMaterialDark"
       labelStyle={{
-        color: colors.textSecondary,
+        color: '#FFFFFF',
         fontSize: 11,
         fontWeight: '600',
       }}
@@ -24,8 +24,8 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="new-transaction">
         <Icon 
-          sf={{ default: 'plus.circle', selected: 'plus.circle.fill' }} 
-          drawable="add_circle"
+          sf={{ default: 'plus', selected: 'plus' }} 
+          drawable="add"
         />
         <Label>Nueva</Label>
       </NativeTabs.Trigger>

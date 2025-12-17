@@ -11,6 +11,7 @@ import {
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { TransactionPager } from '@/components/TransactionPager';
 
 export default function HomeScreen() {
   const { user, isLoading: authLoading } = useAuth();
@@ -43,7 +44,6 @@ export default function HomeScreen() {
 
   const monthlyIncome = getMonthlyTotal(currentYear, currentMonth, 'income');
   const monthlyExpenses = getMonthlyTotal(currentYear, currentMonth, 'expense');
-  const balance = monthlyIncome - monthlyExpenses;
   const monthlyTransactions = getMonthlyTransactions(currentYear, currentMonth);
 
   const monthNames = [
@@ -69,31 +69,6 @@ export default function HomeScreen() {
       currency: 'CLP',
       minimumFractionDigits: 0,
     }).format(amount);
-  };
-
-  const formatDate = (date: Date) => {
-    const d = new Date(date);
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  };
-
-  const getCategoryEmoji = (categoryName: string): string => {
-    const emojiMap: { [key: string]: string } = {
-      'Supermercado': '🛒',
-      'Restaurante': '🍽️',
-      'Transporte': '🚗',
-      'Salud': '💊',
-      'Entretenimiento': '🎬',
-      'Hogar': '🏠',
-      'Educación': '📚',
-      'Otros': '💰',
-      'Salario': '💼',
-      'Inversiones': '📈',
-      'Freelance': '💻',
-      'Alimentación y hogar': '🏠',
-      'Servicios básicos': '💡',
-      'Ahorro': '💰',
-    };
-    return emojiMap[categoryName] || '📁';
   };
 
   // Show loading only on first load
@@ -125,13 +100,6 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.summaryCard}>
-          <View style={styles.balanceContainer}>
-            <Text style={styles.balanceLabel}>Balance del mes</Text>
-            <Text style={[styles.balanceAmount, balance >= 0 ? styles.positive : styles.negative]}>
-              {formatCurrency(balance)}
-            </Text>
-          </View>
-
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Ingresos</Text>
@@ -151,45 +119,7 @@ export default function HomeScreen() {
 
         <View style={styles.transactionsSection}>
           <Text style={styles.sectionTitle}>Transacciones recientes</Text>
-          
-          {monthlyTransactions.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>📊</Text>
-              <Text style={styles.emptyText}>No hay transacciones este mes</Text>
-              <Text style={styles.emptySubtext}>
-                Agrega tu primera transacción usando el botón de abajo
-              </Text>
-            </View>
-          ) : (
-            monthlyTransactions.slice(0, 10).map((transaction, index) => (
-              <View key={`${transaction.id}-${index}`} style={styles.transactionCard}>
-                <View style={styles.transactionLeft}>
-                  <View style={styles.categoryIcon}>
-                    <Text style={styles.categoryEmoji}>
-                      {getCategoryEmoji(transaction.mainCategoryName)}
-                    </Text>
-                  </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionDescription}>
-                      {transaction.description}
-                    </Text>
-                    <Text style={styles.transactionCategory}>
-                      {transaction.subcategoryName} • {formatDate(transaction.date)}
-                    </Text>
-                  </View>
-                </View>
-                <Text
-                  style={[
-                    styles.transactionAmount,
-                    transaction.type === 'income' ? styles.income : styles.expense,
-                  ]}
-                >
-                  {transaction.type === 'income' ? '+' : '-'}
-                  {formatCurrency(transaction.amount)}
-                </Text>
-              </View>
-            ))
-          )}
+          <TransactionPager transactions={monthlyTransactions} itemsPerPage={5} />
         </View>
       </ScrollView>
     </View>
@@ -240,45 +170,28 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  balanceContainer: {
-    marginBottom: 24,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: '700',
-  },
-  positive: {
-    color: colors.income,
-  },
-  negative: {
-    color: colors.expense,
-  },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statItem: {
     flex: 1,
+    alignItems: 'center',
   },
   divider: {
     width: 1,
-    height: 40,
+    height: 50,
     backgroundColor: colors.border,
     marginHorizontal: 16,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   statAmount: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
   },
   income: {
     color: colors.income,
@@ -294,69 +207,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  transactionCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.backgroundAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  categoryEmoji: {
-    fontSize: 24,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionDescription: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  transactionCategory: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 12,
   },
 });

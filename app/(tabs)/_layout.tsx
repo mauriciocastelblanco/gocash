@@ -14,7 +14,7 @@ export default function TabLayout() {
     {
       name: 'new-transaction',
       route: '/(tabs)/new-transaction',
-      icon: 'add_circle',
+      icon: 'add',
       label: 'Nueva',
     },
     {
