@@ -57,13 +57,15 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('[ProfileScreen] Signing out...');
+              console.log('[ProfileScreen] Starting sign out...');
               await signOut();
-              console.log('[ProfileScreen] Sign out successful, redirecting to login...');
+              console.log('[ProfileScreen] Sign out successful, navigating to login...');
+              // Force navigation to login screen
               router.replace('/login');
             } catch (error) {
               console.error('[ProfileScreen] Error signing out:', error);
-              Alert.alert('Error', 'No se pudo cerrar sesión. Por favor intenta de nuevo.');
+              // Even if there's an error, try to navigate to login
+              router.replace('/login');
             }
           },
         },
@@ -82,7 +84,15 @@ export default function ProfileScreen() {
           <View style={styles.avatarContainer}>
             <Text style={styles.avatarEmoji}>👤</Text>
           </View>
-          <Text style={styles.userName}>{user?.email || 'Usuario'}</Text>
+          <View style={styles.userNameContainer}>
+            <Text 
+              style={styles.userName} 
+              numberOfLines={1} 
+              ellipsizeMode="middle"
+            >
+              {user?.email || 'Usuario'}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -187,10 +197,15 @@ const styles = StyleSheet.create({
   avatarEmoji: {
     fontSize: 48,
   },
+  userNameContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+  },
   userName: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+    textAlign: 'center',
   },
   section: {
     marginBottom: 32,
