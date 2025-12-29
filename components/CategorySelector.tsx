@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,9 @@ export function CategorySelector({
   const selectedMainCategory = mainCategories.find((cat) => cat.id === selectedMainCategoryId);
   const selectedSubcategory = subcategories.find((sub) => sub.id === selectedSubcategoryId);
 
+  // Wrap onSubcategorySelect in useCallback to stabilize the reference
+  const stableOnSubcategorySelect = useCallback(onSubcategorySelect, [onSubcategorySelect]);
+
   // Reset subcategory when main category changes
   useEffect(() => {
     if (selectedMainCategoryId && selectedSubcategoryId) {
@@ -56,10 +59,10 @@ export function CategorySelector({
         (sub) => sub.id === selectedSubcategoryId
       );
       if (!subcategoryBelongsToCategory) {
-        onSubcategorySelect('');
+        stableOnSubcategorySelect('');
       }
     }
-  }, [selectedMainCategoryId]);
+  }, [selectedMainCategoryId, selectedSubcategoryId, filteredSubcategories, stableOnSubcategorySelect]);
 
   const handleMainCategoryPress = () => {
     console.log('[CategorySelector] Opening main category modal');
@@ -87,7 +90,7 @@ export function CategorySelector({
   const handleSubcategorySelect = (subcategoryId: string) => {
     console.log('[CategorySelector] Selected subcategory:', subcategoryId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onSubcategorySelect(subcategoryId);
+    stableOnSubcategorySelect(subcategoryId);
     setShowSubcategoryModal(false);
   };
 

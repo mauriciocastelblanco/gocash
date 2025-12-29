@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -26,13 +26,7 @@ export function useCategories() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      loadCategories();
-    }
-  }, [user]);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -75,7 +69,13 @@ export function useCategories() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadCategories();
+    }
+  }, [user, loadCategories]);
 
   const getSubcategoriesByMainCategory = (mainCategoryId: string): Subcategory[] => {
     return subcategories.filter((sub) => sub.main_category_id === mainCategoryId);

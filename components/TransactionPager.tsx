@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -141,53 +141,16 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
     return (
       <View key={pageIndex} style={styles.page}>
         {pageTransactions.map((transaction, index) => {
-          const animatedStyle = useAnimatedStyle(() => {
-            const distance = Math.abs(animatedPage.value - pageIndex);
-            const opacity = interpolate(
-              distance,
-              [0, 0.5, 1],
-              [1, 0.5, 0],
-              Extrapolate.CLAMP
-            );
-            const scale = interpolate(
-              distance,
-              [0, 1],
-              [1, 0.9],
-              Extrapolate.CLAMP
-            );
-            return {
-              opacity: withTiming(opacity, { duration: 300 }),
-              transform: [{ scale: withTiming(scale, { duration: 300 }) }],
-            };
-          });
-
           return (
-            <Animated.View key={`${transaction.id}-${index}`} style={[styles.transactionCard, animatedStyle]}>
-              <View style={styles.transactionLeft}>
-                <View style={styles.categoryIcon}>
-                  <Text style={styles.categoryEmoji}>
-                    {getCategoryEmoji(transaction.mainCategoryName)}
-                  </Text>
-                </View>
-                <View style={styles.transactionInfo}>
-                  <Text style={styles.transactionDescription} numberOfLines={1}>
-                    {transaction.description}
-                  </Text>
-                  <Text style={styles.transactionCategory}>
-                    {transaction.subcategoryName} • {formatDate(transaction.date)}
-                  </Text>
-                </View>
-              </View>
-              <Text
-                style={[
-                  styles.transactionAmount,
-                  transaction.type === 'income' ? styles.income : styles.expense,
-                ]}
-              >
-                {transaction.type === 'income' ? '+' : '-'}
-                {formatCurrency(transaction.amount)}
-              </Text>
-            </Animated.View>
+            <TransactionCard
+              key={`${transaction.id}-${index}`}
+              transaction={transaction}
+              pageIndex={pageIndex}
+              animatedPage={animatedPage}
+              formatCurrency={formatCurrency}
+              formatDate={formatDate}
+              getCategoryEmoji={getCategoryEmoji}
+            />
           );
         })}
       </View>
@@ -207,6 +170,14 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
       ],
     };
   });
+
+  // Create animated styles for pagination dots - moved outside of conditional
+  const dotAnimatedStyles = useMemo(() => {
+    return Array.from({ length: totalPages }).map((_, index) => {
+      // We'll create the animated style in the render
+      return index;
+    });
+  }, [totalPages]);
 
   return (
     <View style={styles.container}>
@@ -230,28 +201,13 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
           </TouchableOpacity>
 
           <View style={styles.pageIndicatorContainer}>
-            {Array.from({ length: totalPages }).map((_, index) => {
-              const dotAnimatedStyle = useAnimatedStyle(() => {
-                const isActive = index === currentPage;
-                const width = withTiming(isActive ? 24 : 8, { duration: 300 });
-                const opacity = withTiming(isActive ? 1 : 0.4, { duration: 300 });
-                return {
-                  width,
-                  opacity,
-                };
-              });
-
-              return (
-                <Animated.View
-                  key={index}
-                  style={[
-                    styles.pageDot,
-                    index === currentPage && styles.pageDotActive,
-                    dotAnimatedStyle,
-                  ]}
-                />
-              );
-            })}
+            {dotAnimatedStyles.map((index) => (
+              <PaginationDot
+                key={index}
+                index={index}
+                currentPage={currentPage}
+              />
+            ))}
           </View>
 
           <TouchableOpacity
@@ -267,6 +223,102 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
         </View>
       )}
     </View>
+  );
+}
+
+// Separate component for pagination dot to use hooks properly
+interface PaginationDotProps {
+  index: number;
+  currentPage: number;
+}
+
+function PaginationDot({ index, currentPage }: PaginationDotProps) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const isActive = index === currentPage;
+    const width = withTiming(isActive ? 24 : 8, { duration: 300 });
+    const opacity = withTiming(isActive ? 1 : 0.4, { duration: 300 });
+    return {
+      width,
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.pageDot,
+        index === currentPage && styles.pageDotActive,
+        animatedStyle,
+      ]}
+    />
+  );
+}
+
+// Separate component for transaction card to use hooks properly
+interface TransactionCardProps {
+  transaction: Transaction;
+  pageIndex: number;
+  animatedPage: Animated.SharedValue<number>;
+  formatCurrency: (amount: number) => string;
+  formatDate: (date: Date) => string;
+  getCategoryEmoji: (categoryName: string) => string;
+}
+
+function TransactionCard({
+  transaction,
+  pageIndex,
+  animatedPage,
+  formatCurrency,
+  formatDate,
+  getCategoryEmoji,
+}: TransactionCardProps) {
+  const animatedStyle = useAnimatedStyle(() => {
+    const distance = Math.abs(animatedPage.value - pageIndex);
+    const opacity = interpolate(
+      distance,
+      [0, 0.5, 1],
+      [1, 0.5, 0],
+      Extrapolate.CLAMP
+    );
+    const scale = interpolate(
+      distance,
+      [0, 1],
+      [1, 0.9],
+      Extrapolate.CLAMP
+    );
+    return {
+      opacity: withTiming(opacity, { duration: 300 }),
+      transform: [{ scale: withTiming(scale, { duration: 300 }) }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.transactionCard, animatedStyle]}>
+      <View style={styles.transactionLeft}>
+        <View style={styles.categoryIcon}>
+          <Text style={styles.categoryEmoji}>
+            {getCategoryEmoji(transaction.mainCategoryName)}
+          </Text>
+        </View>
+        <View style={styles.transactionInfo}>
+          <Text style={styles.transactionDescription} numberOfLines={1}>
+            {transaction.description}
+          </Text>
+          <Text style={styles.transactionCategory}>
+            {transaction.subcategoryName} • {formatDate(transaction.date)}
+          </Text>
+        </View>
+      </View>
+      <Text
+        style={[
+          styles.transactionAmount,
+          transaction.type === 'income' ? styles.income : styles.expense,
+        ]}
+      >
+        {transaction.type === 'income' ? '+' : '-'}
+        {formatCurrency(transaction.amount)}
+      </Text>
+    </Animated.View>
   );
 }
 

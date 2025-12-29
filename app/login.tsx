@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -39,39 +39,39 @@ export default function LoginScreen() {
   const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
 
-  const handleEmailFocus = () => {
+  const handleEmailFocus = useCallback(() => {
     emailFocusAnimation.value = withSpring(1, {
       damping: 15,
       stiffness: 150,
     });
     Haptics.selectionAsync();
-  };
+  }, [emailFocusAnimation]);
 
-  const handleEmailBlur = () => {
+  const handleEmailBlur = useCallback(() => {
     if (!email) {
       emailFocusAnimation.value = withSpring(0, {
         damping: 15,
         stiffness: 150,
       });
     }
-  };
+  }, [email, emailFocusAnimation]);
 
-  const handlePasswordFocus = () => {
+  const handlePasswordFocus = useCallback(() => {
     passwordFocusAnimation.value = withSpring(1, {
       damping: 15,
       stiffness: 150,
     });
     Haptics.selectionAsync();
-  };
+  }, [passwordFocusAnimation]);
 
-  const handlePasswordBlur = () => {
+  const handlePasswordBlur = useCallback(() => {
     if (!password) {
       passwordFocusAnimation.value = withSpring(0, {
         damping: 15,
         stiffness: 150,
       });
     }
-  };
+  }, [password, passwordFocusAnimation]);
 
   const emailLabelStyle = useAnimatedStyle(() => {
     return {
@@ -186,13 +186,13 @@ export default function LoginScreen() {
     if (email) {
       emailFocusAnimation.value = 1;
     }
-  }, []);
+  }, [email, emailFocusAnimation]);
 
   React.useEffect(() => {
     if (password) {
       passwordFocusAnimation.value = 1;
     }
-  }, []);
+  }, [password, passwordFocusAnimation]);
 
   return (
     <KeyboardAvoidingView

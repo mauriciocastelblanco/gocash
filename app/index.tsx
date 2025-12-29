@@ -11,11 +11,14 @@ export default function Index() {
   const segments = useSegments();
   const [hasNavigated, setHasNavigated] = useState(false);
 
+  // Extract segments join to a variable for dependency tracking
+  const segmentsPath = segments.join('/');
+
   useEffect(() => {
     console.log('[Index] Auth state:', { 
       hasUser: !!user, 
       isLoading, 
-      segments: segments.join('/'),
+      segments: segmentsPath,
       hasNavigated 
     });
 
@@ -52,7 +55,7 @@ export default function Index() {
       setHasNavigated(true);
       router.replace('/(tabs)/(home)');
     }
-  }, [user, isLoading, segments.join('/'), hasNavigated]);
+  }, [user, isLoading, segmentsPath, hasNavigated, router, segments]);
 
   // Reset navigation flag when user changes
   useEffect(() => {

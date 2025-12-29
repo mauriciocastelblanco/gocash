@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { saveTransaction } from '@/lib/transactions';
@@ -42,26 +42,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [error, setError] = useState<Error | null>(null);
   const { user, isLoading: authLoading } = useAuth();
 
-  useEffect(() => {
-    console.log('[TransactionContext] Auth state:', {
-      hasUser: !!user,
-      authLoading,
-      userId: user?.id,
-    });
-
-    // Only load transactions when we have a user and auth is done loading
-    if (!authLoading && user) {
-      console.log('[TransactionContext] Loading transactions...');
-      loadTransactions();
-    } else if (!authLoading && !user) {
-      console.log('[TransactionContext] No user, clearing transactions');
-      setTransactions([]);
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [user, authLoading]);
-
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     if (!user) {
       console.log('[TransactionContext] No user, skipping load');
       return;
@@ -113,12 +94,31 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
-  const refreshTransactions = async () => {
+  useEffect(() => {
+    console.log('[TransactionContext] Auth state:', {
+      hasUser: !!user,
+      authLoading,
+      userId: user?.id,
+    });
+
+    // Only load transactions when we have a user and auth is done loading
+    if (!authLoading && user) {
+      console.log('[TransactionContext] Loading transactions...');
+      loadTransactions();
+    } else if (!authLoading && !user) {
+      console.log('[TransactionContext] No user, clearing transactions');
+      setTransactions([]);
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [user, authLoading, loadTransactions]);
+
+  const refreshTransactions = useCallback(async () => {
     console.log('[TransactionContext] Refreshing...');
     await loadTransactions();
-  };
+  }, [loadTransactions]);
 
   const addTransaction = async (
     transaction: Omit<Transaction, 'id' | 'createdAt' | 'mainCategoryName' | 'subcategoryName'>
