@@ -52,7 +52,6 @@ export default function FloatingTabBar({
   const isDark = colorScheme === 'dark';
   const animatedValue = useSharedValue(0);
 
-  // Improved active tab detection with better path matching
   const activeTabIndex = React.useMemo(() => {
     let bestMatch = -1;
     let bestMatchScore = 0;
@@ -208,8 +207,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 999999,
-    elevation: 999999,
+    zIndex: 9999999,
+    elevation: 9999999,
     alignItems: 'center',
     pointerEvents: 'box-none',
   },
@@ -217,13 +216,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     alignSelf: 'center',
     pointerEvents: 'auto',
-    zIndex: 999999,
-    elevation: 999999,
+    zIndex: 9999999,
+    elevation: 9999999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
   },
   blurContainer: {
     overflow: 'hidden',
-    zIndex: 999999,
-    elevation: 999999,
+    zIndex: 9999999,
+    elevation: 9999999,
   },
   background: {
     ...StyleSheet.absoluteFillObject,

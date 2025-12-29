@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const { transactions, getMonthlyTotal, getMonthlyTransactions, isLoading, refreshTransactions } = useTransactions();
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
@@ -64,7 +66,12 @@ export default function HomeScreen() {
     <View style={[commonStyles.container, styles.container]}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { 
+            paddingTop: Math.max(insets.top + 20, 60),
+          }
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -104,7 +111,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 0, // iOS has native header
+    paddingTop: 0,
   },
   centerContent: {
     justifyContent: 'center',
@@ -120,8 +127,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   header: {
     marginBottom: 24,

@@ -10,7 +10,9 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Animated, {
@@ -28,6 +30,7 @@ import { CategorySelector } from '@/components/CategorySelector';
 export default function NewTransactionScreen() {
   const router = useRouter();
   const { addTransaction } = useTransactions();
+  const insets = useSafeAreaInsets();
   const {
     mainCategories,
     subcategories,
@@ -133,273 +136,276 @@ export default function NewTransactionScreen() {
 
   return (
     <View style={[commonStyles.container, styles.container]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Nueva Transacción</Text>
-          <Text style={styles.subtitle}>Registra tu gasto o ingreso</Text>
-        </View>
-
-        {categoriesError && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>⚠️ Error al cargar categorías: {categoriesError}</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { 
+              paddingTop: Platform.OS === 'ios' ? Math.max(insets.top + 20, 60) : 20,
+            }
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Nueva Transacción</Text>
+            <Text style={styles.subtitle}>Registra tu gasto o ingreso</Text>
           </View>
-        )}
 
-        <View style={styles.form}>
-          {/* Type Selector - Compact */}
-          <View style={styles.compactSection}>
-            <View style={styles.segmentedControl}>
-              <TouchableOpacity
-                style={[
-                  styles.segmentButton,
-                  type === 'expense' && styles.segmentButtonActive,
-                ]}
-                onPress={() => {
-                  setType('expense');
-                  setSelectedMainCategoryId(null);
-                  setSelectedSubcategoryId(null);
-                  Haptics.selectionAsync();
-                }}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    type === 'expense' && styles.segmentButtonTextActive,
-                  ]}
-                >
-                  💸 Gasto
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.segmentButton,
-                  type === 'income' && styles.segmentButtonActive,
-                ]}
-                onPress={() => {
-                  setType('income');
-                  setSelectedMainCategoryId(null);
-                  setSelectedSubcategoryId(null);
-                  Haptics.selectionAsync();
-                }}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.segmentButtonText,
-                    type === 'income' && styles.segmentButtonTextActive,
-                  ]}
-                >
-                  💰 Ingreso
-                </Text>
-              </TouchableOpacity>
+          {categoriesError && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>⚠️ Error al cargar categorías: {categoriesError}</Text>
             </View>
-          </View>
+          )}
 
-          {/* Amount Input - Prominent */}
-          <View style={styles.amountSection}>
-            <Text style={styles.currencySymbol}>$</Text>
-            <TextInput
-              style={styles.amountInput}
-              placeholder="0"
-              placeholderTextColor={colors.textSecondary}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Description - Compact */}
-          <View style={styles.compactInputGroup}>
-            <TextInput
-              style={styles.descriptionInput}
-              placeholder="Descripción (ej: Compra en supermercado)"
-              placeholderTextColor={colors.textSecondary}
-              value={description}
-              onChangeText={setDescription}
-              editable={!isLoading}
-            />
-          </View>
-
-          {/* Category Selector */}
-          <CategorySelector
-            mainCategories={mainCategories}
-            subcategories={subcategories}
-            selectedMainCategoryId={selectedMainCategoryId}
-            selectedSubcategoryId={selectedSubcategoryId}
-            onMainCategorySelect={setSelectedMainCategoryId}
-            onSubcategorySelect={setSelectedSubcategoryId}
-            type={type}
-            isLoading={categoriesLoading}
-          />
-
-          {/* Payment Method - Compact Grid */}
-          <View style={styles.compactSection}>
-            <Text style={styles.sectionLabel}>Método de pago</Text>
-            <View style={styles.paymentGrid}>
-              <TouchableOpacity
-                style={[
-                  styles.paymentCard,
-                  paymentMethod === 'debit' && styles.paymentCardActive,
-                ]}
-                onPress={() => {
-                  setPaymentMethod('debit');
-                  setInstallments('1');
-                  Haptics.selectionAsync();
-                }}
-                disabled={isLoading}
-              >
-                <Text style={styles.paymentIcon}>🏦</Text>
-                <Text
+          <View style={styles.form}>
+            <View style={styles.compactSection}>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
                   style={[
-                    styles.paymentLabel,
-                    paymentMethod === 'debit' && styles.paymentLabelActive,
+                    styles.segmentButton,
+                    type === 'expense' && styles.segmentButtonActive,
                   ]}
+                  onPress={() => {
+                    setType('expense');
+                    setSelectedMainCategoryId(null);
+                    setSelectedSubcategoryId(null);
+                    Haptics.selectionAsync();
+                  }}
+                  disabled={isLoading}
                 >
-                  Débito
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.paymentCard,
-                  paymentMethod === 'credit' && styles.paymentCardActive,
-                ]}
-                onPress={() => {
-                  setPaymentMethod('credit');
-                  Haptics.selectionAsync();
-                }}
-                disabled={isLoading}
-              >
-                <Text style={styles.paymentIcon}>💳</Text>
-                <Text
-                  style={[
-                    styles.paymentLabel,
-                    paymentMethod === 'credit' && styles.paymentLabelActive,
-                  ]}
-                >
-                  Crédito
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.paymentCard,
-                  paymentMethod === 'cash' && styles.paymentCardActive,
-                ]}
-                onPress={() => {
-                  setPaymentMethod('cash');
-                  setInstallments('1');
-                  Haptics.selectionAsync();
-                }}
-                disabled={isLoading}
-              >
-                <Text style={styles.paymentIcon}>💵</Text>
-                <Text
-                  style={[
-                    styles.paymentLabel,
-                    paymentMethod === 'cash' && styles.paymentLabelActive,
-                  ]}
-                >
-                  Efectivo
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Installments - Only show for credit */}
-          {paymentMethod === 'credit' && (
-            <View style={styles.compactInputGroup}>
-              <View style={styles.installmentsRow}>
-                <Text style={styles.installmentsLabel}>Cuotas:</Text>
-                <TextInput
-                  style={styles.installmentsInput}
-                  placeholder="1"
-                  placeholderTextColor={colors.textSecondary}
-                  value={installments}
-                  onChangeText={setInstallments}
-                  keyboardType="number-pad"
-                  editable={!isLoading}
-                />
-                {parseInt(installments) > 1 && (
-                  <Text style={styles.installmentsInfo}>
-                    ${(parseFloat(amount || '0') / parseInt(installments)).toFixed(0)}/mes
+                  <Text
+                    style={[
+                      styles.segmentButtonText,
+                      type === 'expense' && styles.segmentButtonTextActive,
+                    ]}
+                  >
+                    💸 Gasto
                   </Text>
-                )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.segmentButton,
+                    type === 'income' && styles.segmentButtonActive,
+                  ]}
+                  onPress={() => {
+                    setType('income');
+                    setSelectedMainCategoryId(null);
+                    setSelectedSubcategoryId(null);
+                    Haptics.selectionAsync();
+                  }}
+                  disabled={isLoading}
+                >
+                  <Text
+                    style={[
+                      styles.segmentButtonText,
+                      type === 'income' && styles.segmentButtonTextActive,
+                    ]}
+                  >
+                    💰 Ingreso
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-          )}
 
-          {/* Date Picker - Compact */}
-          <TouchableOpacity
-            style={styles.dateCard}
-            onPress={() => {
-              setShowDatePicker(true);
-              Haptics.selectionAsync();
-            }}
-            disabled={isLoading}
-          >
-            <Text style={styles.dateIcon}>📅</Text>
-            <Text style={styles.dateText}>{formatDate(date)}</Text>
-          </TouchableOpacity>
+            <View style={styles.amountSection}>
+              <Text style={styles.currencySymbol}>$</Text>
+              <TextInput
+                style={styles.amountInput}
+                placeholder="0"
+                placeholderTextColor={colors.textSecondary}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="decimal-pad"
+                editable={!isLoading}
+              />
+            </View>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (selectedDate) {
-                  setDate(selectedDate);
-                }
-              }}
-              maximumDate={new Date()}
+            <View style={styles.compactInputGroup}>
+              <TextInput
+                style={styles.descriptionInput}
+                placeholder="Descripción (ej: Compra en supermercado)"
+                placeholderTextColor={colors.textSecondary}
+                value={description}
+                onChangeText={setDescription}
+                editable={!isLoading}
+              />
+            </View>
+
+            <CategorySelector
+              mainCategories={mainCategories}
+              subcategories={subcategories}
+              selectedMainCategoryId={selectedMainCategoryId}
+              selectedSubcategoryId={selectedSubcategoryId}
+              onMainCategorySelect={setSelectedMainCategoryId}
+              onSubcategorySelect={setSelectedSubcategoryId}
+              type={type}
+              isLoading={categoriesLoading}
             />
-          )}
 
-          <Animated.View style={buttonAnimatedStyle}>
+            <View style={styles.compactSection}>
+              <Text style={styles.sectionLabel}>MÉTODO DE PAGO</Text>
+              <View style={styles.paymentGrid}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentCard,
+                    paymentMethod === 'debit' && styles.paymentCardActive,
+                  ]}
+                  onPress={() => {
+                    setPaymentMethod('debit');
+                    setInstallments('1');
+                    Haptics.selectionAsync();
+                  }}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.paymentIcon}>🏦</Text>
+                  <Text
+                    style={[
+                      styles.paymentLabel,
+                      paymentMethod === 'debit' && styles.paymentLabelActive,
+                    ]}
+                  >
+                    Débito
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentCard,
+                    paymentMethod === 'credit' && styles.paymentCardActive,
+                  ]}
+                  onPress={() => {
+                    setPaymentMethod('credit');
+                    Haptics.selectionAsync();
+                  }}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.paymentIcon}>💳</Text>
+                  <Text
+                    style={[
+                      styles.paymentLabel,
+                      paymentMethod === 'credit' && styles.paymentLabelActive,
+                    ]}
+                  >
+                    Crédito
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentCard,
+                    paymentMethod === 'cash' && styles.paymentCardActive,
+                  ]}
+                  onPress={() => {
+                    setPaymentMethod('cash');
+                    setInstallments('1');
+                    Haptics.selectionAsync();
+                  }}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.paymentIcon}>💵</Text>
+                  <Text
+                    style={[
+                      styles.paymentLabel,
+                      paymentMethod === 'cash' && styles.paymentLabelActive,
+                    ]}
+                  >
+                    Efectivo
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {paymentMethod === 'credit' && (
+              <View style={styles.compactInputGroup}>
+                <View style={styles.installmentsRow}>
+                  <Text style={styles.installmentsLabel}>Cuotas:</Text>
+                  <TextInput
+                    style={styles.installmentsInput}
+                    placeholder="1"
+                    placeholderTextColor={colors.textSecondary}
+                    value={installments}
+                    onChangeText={setInstallments}
+                    keyboardType="number-pad"
+                    editable={!isLoading}
+                  />
+                  {parseInt(installments) > 1 && (
+                    <Text style={styles.installmentsInfo}>
+                      ${(parseFloat(amount || '0') / parseInt(installments)).toFixed(0)}/mes
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={[
-                buttonStyles.primaryButton,
-                styles.submitButton,
-                isLoading && styles.disabledButton,
-              ]}
-              onPress={handleSubmit}
+              style={styles.dateCard}
+              onPress={() => {
+                setShowDatePicker(true);
+                Haptics.selectionAsync();
+              }}
               disabled={isLoading}
-              activeOpacity={0.8}
             >
-              {isLoading ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={buttonStyles.primaryButtonText}>✓ Guardar Transacción</Text>
-              )}
+              <Text style={styles.dateIcon}>📅</Text>
+              <Text style={styles.dateText}>{formatDate(date)}</Text>
             </TouchableOpacity>
-          </Animated.View>
-        </View>
-      </ScrollView>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setDate(selectedDate);
+                  }
+                }}
+                maximumDate={new Date()}
+              />
+            )}
+
+            <Animated.View style={buttonAnimatedStyle}>
+              <TouchableOpacity
+                style={[
+                  buttonStyles.primaryButton,
+                  styles.submitButton,
+                  isLoading && styles.disabledButton,
+                ]}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.background} />
+                ) : (
+                  <Text style={buttonStyles.primaryButtonText}>✓ Guardar Transacción</Text>
+                )}
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Platform.OS === 'android' ? 48 : 0,
+    paddingTop: 0,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 140,
+    paddingBottom: 160,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   title: {
     fontSize: 28,

@@ -4,12 +4,24 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
+  Dimensions,
 } from 'react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { colors } from '@/styles/commonStyles';
 
 const { width: screenWidth } = Dimensions.get('window');
+const SWIPE_THRESHOLD = 50;
 
 interface Transaction {
   id: string;
@@ -28,11 +40,10 @@ interface TransactionPagerProps {
 
 export function TransactionPager({ transactions, itemsPerPage = 5 }: TransactionPagerProps) {
   const [currentPage, setCurrentPage] = useState(0);
+  const translateX = useSharedValue(0);
+  const animatedPage = useSharedValue(0);
 
   const totalPages = Math.ceil(transactions.length / itemsPerPage);
-  const startIndex = currentPage * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTransactions = transactions.slice(startIndex, endIndex);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -67,17 +78,48 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
     return emojiMap[categoryName] || '📁';
   };
 
+  const changePage = (newPage: number) => {
+    if (newPage >= 0 && newPage < totalPages) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setCurrentPage(newPage);
+      animatedPage.value = withSpring(newPage, {
+        damping: 20,
+        stiffness: 90,
+      });
+    }
+  };
+
   const goToNextPage = () => {
     if (currentPage < totalPages - 1) {
-      setCurrentPage(currentPage + 1);
+      changePage(currentPage + 1);
     }
   };
 
   const goToPreviousPage = () => {
     if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
+      changePage(currentPage - 1);
     }
   };
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+    })
+    .onEnd((event) => {
+      const shouldGoNext = event.translationX < -SWIPE_THRESHOLD && currentPage < totalPages - 1;
+      const shouldGoPrev = event.translationX > SWIPE_THRESHOLD && currentPage > 0;
+
+      if (shouldGoNext) {
+        runOnJS(goToNextPage)();
+      } else if (shouldGoPrev) {
+        runOnJS(goToPreviousPage)();
+      }
+
+      translateX.value = withSpring(0, {
+        damping: 20,
+        stiffness: 90,
+      });
+    });
 
   if (transactions.length === 0) {
     return (
@@ -91,38 +133,88 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
     );
   }
 
+  const renderPage = (pageIndex: number) => {
+    const startIndex = pageIndex * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageTransactions = transactions.slice(startIndex, endIndex);
+
+    return (
+      <View key={pageIndex} style={styles.page}>
+        {pageTransactions.map((transaction, index) => {
+          const animatedStyle = useAnimatedStyle(() => {
+            const distance = Math.abs(animatedPage.value - pageIndex);
+            const opacity = interpolate(
+              distance,
+              [0, 0.5, 1],
+              [1, 0.5, 0],
+              Extrapolate.CLAMP
+            );
+            const scale = interpolate(
+              distance,
+              [0, 1],
+              [1, 0.9],
+              Extrapolate.CLAMP
+            );
+            return {
+              opacity: withTiming(opacity, { duration: 300 }),
+              transform: [{ scale: withTiming(scale, { duration: 300 }) }],
+            };
+          });
+
+          return (
+            <Animated.View key={`${transaction.id}-${index}`} style={[styles.transactionCard, animatedStyle]}>
+              <View style={styles.transactionLeft}>
+                <View style={styles.categoryIcon}>
+                  <Text style={styles.categoryEmoji}>
+                    {getCategoryEmoji(transaction.mainCategoryName)}
+                  </Text>
+                </View>
+                <View style={styles.transactionInfo}>
+                  <Text style={styles.transactionDescription} numberOfLines={1}>
+                    {transaction.description}
+                  </Text>
+                  <Text style={styles.transactionCategory}>
+                    {transaction.subcategoryName} • {formatDate(transaction.date)}
+                  </Text>
+                </View>
+              </View>
+              <Text
+                style={[
+                  styles.transactionAmount,
+                  transaction.type === 'income' ? styles.income : styles.expense,
+                ]}
+              >
+                {transaction.type === 'income' ? '+' : '-'}
+                {formatCurrency(transaction.amount)}
+              </Text>
+            </Animated.View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const containerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateX: translateX.value + interpolate(
+            animatedPage.value,
+            [0, totalPages - 1],
+            [0, -(totalPages - 1) * screenWidth]
+          ),
+        },
+      ],
+    };
+  });
+
   return (
     <View style={styles.container}>
-      <View style={styles.transactionsList}>
-        {currentTransactions.map((transaction, index) => (
-          <View key={`${transaction.id}-${index}`} style={styles.transactionCard}>
-            <View style={styles.transactionLeft}>
-              <View style={styles.categoryIcon}>
-                <Text style={styles.categoryEmoji}>
-                  {getCategoryEmoji(transaction.mainCategoryName)}
-                </Text>
-              </View>
-              <View style={styles.transactionInfo}>
-                <Text style={styles.transactionDescription}>
-                  {transaction.description}
-                </Text>
-                <Text style={styles.transactionCategory}>
-                  {transaction.subcategoryName} • {formatDate(transaction.date)}
-                </Text>
-              </View>
-            </View>
-            <Text
-              style={[
-                styles.transactionAmount,
-                transaction.type === 'income' ? styles.income : styles.expense,
-              ]}
-            >
-              {transaction.type === 'income' ? '+' : '-'}
-              {formatCurrency(transaction.amount)}
-            </Text>
-          </View>
-        ))}
-      </View>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={[styles.pagesContainer, containerAnimatedStyle]}>
+          {Array.from({ length: totalPages }).map((_, index) => renderPage(index))}
+        </Animated.View>
+      </GestureDetector>
 
       {totalPages > 1 && (
         <View style={styles.paginationContainer}>
@@ -130,31 +222,46 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
             style={[styles.paginationButton, currentPage === 0 && styles.paginationButtonDisabled]}
             onPress={goToPreviousPage}
             disabled={currentPage === 0}
+            activeOpacity={0.7}
           >
             <Text style={[styles.paginationButtonText, currentPage === 0 && styles.paginationButtonTextDisabled]}>
-              ‹ Anterior
+              ‹
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.pageIndicator}>
-            {Array.from({ length: totalPages }).map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.pageDot,
-                  index === currentPage && styles.pageDotActive,
-                ]}
-              />
-            ))}
+          <View style={styles.pageIndicatorContainer}>
+            {Array.from({ length: totalPages }).map((_, index) => {
+              const dotAnimatedStyle = useAnimatedStyle(() => {
+                const isActive = index === currentPage;
+                const width = withTiming(isActive ? 24 : 8, { duration: 300 });
+                const opacity = withTiming(isActive ? 1 : 0.4, { duration: 300 });
+                return {
+                  width,
+                  opacity,
+                };
+              });
+
+              return (
+                <Animated.View
+                  key={index}
+                  style={[
+                    styles.pageDot,
+                    index === currentPage && styles.pageDotActive,
+                    dotAnimatedStyle,
+                  ]}
+                />
+              );
+            })}
           </View>
 
           <TouchableOpacity
             style={[styles.paginationButton, currentPage === totalPages - 1 && styles.paginationButtonDisabled]}
             onPress={goToNextPage}
             disabled={currentPage === totalPages - 1}
+            activeOpacity={0.7}
           >
             <Text style={[styles.paginationButtonText, currentPage === totalPages - 1 && styles.paginationButtonTextDisabled]}>
-              Siguiente ›
+              ›
             </Text>
           </TouchableOpacity>
         </View>
@@ -167,7 +274,12 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
   },
-  transactionsList: {
+  pagesContainer: {
+    flexDirection: 'row',
+    width: screenWidth * 10,
+  },
+  page: {
+    width: screenWidth - 40,
     marginBottom: 16,
   },
   emptyState: {
@@ -198,11 +310,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   transactionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 12,
   },
   categoryIcon: {
     width: 48,
@@ -232,7 +350,6 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 16,
     fontWeight: '700',
-    marginLeft: 12,
   },
   income: {
     color: colors.income,
@@ -246,39 +363,47 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 8,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 16,
+    marginTop: 8,
   },
   paginationButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.card,
-    minWidth: 100,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   paginationButtonDisabled: {
     opacity: 0.3,
   },
   paginationButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.primary,
   },
   paginationButtonTextDisabled: {
     color: colors.textSecondary,
   },
-  pageIndicator: {
+  pageIndicatorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
+    justifyContent: 'center',
   },
   pageDot: {
-    width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.primary,
   },
   pageDotActive: {
     backgroundColor: colors.primary,
-    width: 24,
   },
 });
