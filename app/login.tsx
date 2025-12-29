@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -21,12 +22,14 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
+  const router = useRouter();
 
   // Animation values for floating labels
   const emailFocusAnimation = useSharedValue(0);
@@ -152,8 +155,11 @@ export default function LoginScreen() {
     try {
       console.log('[LoginScreen] Attempting login...');
       await signIn(email, password);
-      console.log('[LoginScreen] Login successful, navigation will happen automatically');
+      console.log('[LoginScreen] Login successful, navigating to home...');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Navigate immediately after successful login
+      router.replace('/(tabs)/(home)');
     } catch (error: any) {
       console.error('[LoginScreen] Login error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -171,7 +177,6 @@ export default function LoginScreen() {
       }
       
       Alert.alert('Error', errorMessage);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -196,9 +201,11 @@ export default function LoginScreen() {
     >
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <View style={styles.logoCircle}>
-            <Text style={styles.logoText}>📈</Text>
-          </View>
+          <Image
+            source={require('@/assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.appName}>
             go<Text style={styles.appNameGreen}>ca</Text>sh
           </Text>
@@ -283,17 +290,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 100,
+    height: 100,
     marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 40,
   },
   appName: {
     fontSize: 36,

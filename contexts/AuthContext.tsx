@@ -45,8 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('[AuthContext] Auth state changed:', _event, session ? 'has session' : 'no session');
+      
+      // Update state immediately
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -59,25 +61,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      console.log('[AuthContext] Signing in...');
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    console.log('[AuthContext] Signing in...');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      if (error) {
-        console.error('[AuthContext] Sign in error:', error);
-        throw error;
-      }
-
-      console.log('[AuthContext] Sign in successful');
-      setSession(data.session);
-      setUser(data.user);
-    } catch (error) {
-      console.error('[AuthContext] Error signing in:', error);
+    if (error) {
+      console.error('[AuthContext] Sign in error:', error);
       throw error;
     }
+
+    console.log('[AuthContext] Sign in successful, updating state...');
+    // Update state immediately after successful login
+    setSession(data.session);
+    setUser(data.user);
   };
 
   const signUp = async (email: string, password: string) => {

@@ -9,14 +9,14 @@ export default function Index() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   useEffect(() => {
     console.log('[Index] Auth state:', { 
       hasUser: !!user, 
       isLoading, 
       segments: segments.join('/'),
-      isNavigating 
+      hasNavigated 
     });
 
     // Wait for auth to finish loading
@@ -26,44 +26,38 @@ export default function Index() {
     }
 
     // Prevent multiple navigation attempts
-    if (isNavigating) {
-      console.log('[Index] Already navigating...');
+    if (hasNavigated) {
+      console.log('[Index] Already navigated, skipping...');
       return;
     }
 
-    // Determine where to navigate
+    // Determine where to navigate based on auth state
     const inAuthGroup = segments[0] === '(tabs)';
+    const inLoginScreen = segments[0] === 'login';
     
     if (user && !inAuthGroup) {
       console.log('[Index] User logged in, navigating to home');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/(tabs)/(home)');
-        setIsNavigating(false);
-      }, 100);
+      setHasNavigated(true);
+      router.replace('/(tabs)/(home)');
     } else if (!user && inAuthGroup) {
-      console.log('[Index] No user, navigating to login');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/login');
-        setIsNavigating(false);
-      }, 100);
-    } else if (!user && segments.length === 0) {
+      console.log('[Index] No user but in auth group, navigating to login');
+      setHasNavigated(true);
+      router.replace('/login');
+    } else if (!user && !inLoginScreen && segments.length === 0) {
       console.log('[Index] Initial load, no user, navigating to login');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/login');
-        setIsNavigating(false);
-      }, 100);
+      setHasNavigated(true);
+      router.replace('/login');
     } else if (user && segments.length === 0) {
       console.log('[Index] Initial load, has user, navigating to home');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/(tabs)/(home)');
-        setIsNavigating(false);
-      }, 100);
+      setHasNavigated(true);
+      router.replace('/(tabs)/(home)');
     }
-  }, [user, isLoading, segments.join('/')]);
+  }, [user, isLoading, segments.join('/'), hasNavigated]);
+
+  // Reset navigation flag when user changes
+  useEffect(() => {
+    setHasNavigated(false);
+  }, [user?.id]);
 
   return (
     <View style={styles.container}>
