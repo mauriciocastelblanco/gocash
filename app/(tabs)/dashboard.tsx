@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/app/integrations/supabase/client';
@@ -50,12 +51,11 @@ export default function DashboardScreen() {
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Get month range
+  // Get month range - FIXED: Using date-fns to format as YYYY-MM-DD
   const getMonthRange = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const startDate = new Date(year, month, 1).toISOString();
-    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
+    const monthDate = new Date(date.getFullYear(), date.getMonth(), 1);
+    const startDate = format(startOfMonth(monthDate), 'yyyy-MM-dd');
+    const endDate = format(endOfMonth(monthDate), 'yyyy-MM-dd');
     return { startDate, endDate };
   };
 
@@ -111,7 +111,7 @@ export default function DashboardScreen() {
     loadWorkspace();
   }, [user]);
 
-  // Fetch financial summary
+  // Fetch financial summary - FIXED: Using correct date format
   const fetchSummary = useCallback(async () => {
     if (!user || !workspaceId) {
       console.log('[Dashboard] No user or workspace, skipping summary fetch');
@@ -120,43 +120,51 @@ export default function DashboardScreen() {
 
     try {
       const { startDate, endDate } = getMonthRange(currentDate);
-      console.log('[Dashboard] Fetching summary:', { startDate, endDate, workspaceId });
+      console.log('📊 Fetching summary:', { workspaceId, startDate, endDate });
 
+      // Query exactly as the web app does
       const { data, error: fetchError } = await supabase
         .from('transactions')
-        .select('type, amount')
+        .select('amount, type')
         .eq('workspace_id', workspaceId)
-        .gte('date', startDate)
-        .lte('date', endDate);
+        .gte('date', startDate)  // >= inicio del mes
+        .lte('date', endDate);   // <= fin del mes
 
       if (fetchError) {
         console.error('[Dashboard] Error fetching summary:', fetchError);
         throw fetchError;
       }
 
-      // Calculate totals by type
-      const totals = (data || []).reduce(
-        (acc, t) => {
-          const amount = typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount;
-          if (t.type === 'income') {
-            acc.income += amount;
-          } else if (t.type === 'expense') {
-            acc.expense += amount;
-          }
-          return acc;
-        },
-        { income: 0, expense: 0 }
-      );
+      if (!data || data.length === 0) {
+        console.log('📊 No transactions found');
+        setSummary({ income: 0, expense: 0 });
+        return;
+      }
 
-      console.log('[Dashboard] Summary:', totals);
-      setSummary(totals);
+      // Calculate totals exactly as the web app does
+      const totalIngresos = data
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const totalGastos = data
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      console.log('📊 Summary result:', {
+        totalIngresos,
+        totalGastos,
+        balance: totalIngresos - totalGastos,
+        transactionCount: data.length
+      });
+
+      setSummary({ income: totalIngresos, expense: totalGastos });
     } catch (err) {
       console.error('[Dashboard] Error:', err);
       setError('Error al cargar el resumen');
     }
   }, [user, workspaceId, currentDate]);
 
-  // Fetch transactions
+  // Fetch transactions - FIXED: Using correct date format
   const fetchTransactions = useCallback(async () => {
     if (!user || !workspaceId) {
       console.log('[Dashboard] No user or workspace, skipping transactions fetch');
@@ -186,8 +194,8 @@ export default function DashboardScreen() {
           )
         `)
         .eq('workspace_id', workspaceId)
-        .gte('date', startDate)
-        .lte('date', endDate)
+        .gte('date', startDate)  // >= inicio del mes
+        .lte('date', endDate)    // <= fin del mes
         .order('date', { ascending: false })
         .order('created_at', { ascending: false });
 
