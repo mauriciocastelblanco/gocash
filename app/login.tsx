@@ -202,14 +202,10 @@ export default function LoginScreen() {
       <View style={styles.content}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('@/assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png')}
+            source={require('@/assets/images/88b8286c-84e9-41a0-a0a5-982a71f79d19.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.appName}>
-            go<Text style={styles.appNameGreen}>ca</Text>sh
-          </Text>
-          <Text style={styles.tagline}>Control de gastos minimalista</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -267,7 +263,7 @@ export default function LoginScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              💡 Esta app está conectada a Supabase. Usa tus credenciales para iniciar sesión.
+              💡 Usa tus credenciales de Gocash.cl para iniciar sesión.
             </Text>
           </View>
         </View>
@@ -288,25 +284,11 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 64,
   },
   logoImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  appNameGreen: {
-    color: colors.primary,
-  },
-  tagline: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    width: 180,
+    height: 180,
   },
   formContainer: {
     width: '100%',

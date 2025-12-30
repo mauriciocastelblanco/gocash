@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Animated, {
@@ -133,7 +134,7 @@ export default function NewTransactionScreen() {
   });
 
   return (
-    <View style={[commonStyles.container, styles.container]}>
+    <SafeAreaView style={[commonStyles.container, styles.container]} edges={['top']}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -382,13 +383,13 @@ export default function NewTransactionScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 48,
+    paddingTop: 0,
   },
   scrollView: {
     flex: 1,
