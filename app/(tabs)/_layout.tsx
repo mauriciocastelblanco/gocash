@@ -12,6 +12,12 @@ export default function TabLayout() {
       label: 'Inicio',
     },
     {
+      name: 'dashboard',
+      route: '/(tabs)/dashboard',
+      icon: 'analytics',
+      label: 'Dashboard',
+    },
+    {
       name: 'new-transaction',
       route: '/(tabs)/new-transaction',
       icon: 'add',
@@ -34,6 +40,7 @@ export default function TabLayout() {
         }}
       >
         <Stack.Screen key="home" name="(home)" />
+        <Stack.Screen key="dashboard" name="dashboard" />
         <Stack.Screen key="new-transaction" name="new-transaction" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>

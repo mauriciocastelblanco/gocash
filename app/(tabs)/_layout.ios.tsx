@@ -22,6 +22,13 @@ export default function TabLayout() {
         />
         <Label>Inicio</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="dashboard">
+        <Icon 
+          sf={{ default: 'chart.bar', selected: 'chart.bar.fill' }} 
+          drawable="analytics"
+        />
+        <Label>Dashboard</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="new-transaction">
         <Icon 
           sf={{ default: 'plus', selected: 'plus' }} 
