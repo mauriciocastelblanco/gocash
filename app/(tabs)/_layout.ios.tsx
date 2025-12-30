@@ -1,7 +1,6 @@
 
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { colors } from '@/styles/commonStyles';
-import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -15,19 +14,12 @@ export default function TabLayout() {
         fontWeight: '600',
       }}
     >
-      <NativeTabs.Trigger name="(home)">
-        <Icon 
-          sf={{ default: 'house', selected: 'house.fill' }} 
-          drawable="home"
-        />
-        <Label>Inicio</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="dashboard">
         <Icon 
           sf={{ default: 'chart.bar', selected: 'chart.bar.fill' }} 
           drawable="analytics"
         />
-        <Label>Dashboard</Label>
+        <Label>Resumen</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="new-transaction">
         <Icon 

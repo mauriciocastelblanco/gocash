@@ -383,9 +383,6 @@ export default function DashboardScreen() {
           ]}>
             <Text style={styles.cardLabel}>Gastos</Text>
             <Text style={styles.cardAmount}>{formatCurrency(summary.expense)}</Text>
-            <Text style={styles.percentageText}>
-              {percentageSpent.toFixed(1)}% de los ingresos
-            </Text>
             {filterType === 'expense' && (
               <Text style={styles.filterIndicator}>✓ Filtro activo</Text>
             )}
@@ -583,13 +580,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#FFFFFF',
-  },
-  percentageText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#FFFFFF',
-    opacity: 0.9,
-    marginTop: 8,
   },
   filterIndicator: {
     fontSize: 12,
