@@ -34,22 +34,28 @@ interface FinancialSummary {
   expense: number;
 }
 
+type FilterType = 'all' | 'income' | 'expense';
+
+const ITEMS_PER_PAGE = 10;
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [summary, setSummary] = useState<FinancialSummary>({ income: 0, expense: 0 });
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Get month range
   const getMonthRange = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    const startDate = new Date(year, month, 1).toISOString();
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
     return { startDate, endDate };
   };
 
@@ -81,6 +87,18 @@ export default function DashboardScreen() {
     const month = monthNames[date.getMonth()];
     return `${day} ${month}`;
   };
+
+  // Filter transactions based on type
+  const filteredTransactions = allTransactions.filter(t => {
+    if (filterType === 'all') return true;
+    return t.type === filterType;
+  });
+
+  // Paginate transactions
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
 
   // Load workspace ID
   useEffect(() => {
@@ -163,7 +181,7 @@ export default function DashboardScreen() {
           subcategory_id,
           main_category_name,
           subcategory_name,
-          main_categories!transactions_main_category_id_fkey (
+          main_categories (
             icono
           )
         `)
@@ -192,7 +210,8 @@ export default function DashboardScreen() {
       }));
 
       console.log('[Dashboard] Loaded', transformedTransactions.length, 'transactions');
-      setTransactions(transformedTransactions);
+      setAllTransactions(transformedTransactions);
+      setError(null);
     } catch (err) {
       console.error('[Dashboard] Error:', err);
       setError('Error al cargar las transacciones');
@@ -260,6 +279,18 @@ export default function DashboardScreen() {
   const handleMonthChange = (offset: number) => {
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
     setCurrentDate(newDate);
+    setCurrentPage(1);
+  };
+
+  // Handle filter change
+  const handleFilterChange = (type: FilterType) => {
+    setFilterType(type);
+    setCurrentPage(1);
+  };
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   // Calculate percentage spent
@@ -272,7 +303,7 @@ export default function DashboardScreen() {
     return '#EF4444'; // red
   };
 
-  if (isLoading && transactions.length === 0) {
+  if (isLoading && allTransactions.length === 0) {
     return (
       <View style={[commonStyles.container, styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -300,7 +331,7 @@ export default function DashboardScreen() {
             <IconSymbol
               ios_icon_name="chevron.left"
               android_material_icon_name="chevron_left"
-              size={24}
+              size={28}
               color={colors.text}
             />
           </TouchableOpacity>
@@ -312,35 +343,65 @@ export default function DashboardScreen() {
             <IconSymbol
               ios_icon_name="chevron.right"
               android_material_icon_name="chevron_right"
-              size={24}
+              size={28}
               color={colors.text}
             />
           </TouchableOpacity>
         </View>
 
         {/* Income Card */}
-        <LinearGradient
-          colors={['#22C55E', '#1A1A1A']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.incomeCard}
+        <TouchableOpacity
+          onPress={() => handleFilterChange(filterType === 'income' ? 'all' : 'income')}
+          activeOpacity={0.8}
         >
-          <Text style={styles.cardLabel}>Ingresos</Text>
-          <Text style={styles.cardAmount}>{formatCurrency(summary.income)}</Text>
-        </LinearGradient>
+          <LinearGradient
+            colors={['#22C55E', '#1A1A1A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.incomeCard,
+              filterType === 'income' && styles.activeCard
+            ]}
+          >
+            <Text style={styles.cardLabel}>Ingresos</Text>
+            <Text style={styles.cardAmount}>{formatCurrency(summary.income)}</Text>
+            {filterType === 'income' && (
+              <Text style={styles.filterIndicator}>✓ Filtro activo</Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
 
         {/* Expense Card */}
-        <View style={[styles.expenseCard, { backgroundColor: getExpenseCardColor() }]}>
-          <Text style={styles.cardLabel}>Gastos</Text>
-          <Text style={styles.cardAmount}>{formatCurrency(summary.expense)}</Text>
-          <Text style={styles.percentageText}>
-            {percentageSpent.toFixed(1)}% de los ingresos
-          </Text>
-        </View>
+        <TouchableOpacity
+          onPress={() => handleFilterChange(filterType === 'expense' ? 'all' : 'expense')}
+          activeOpacity={0.8}
+        >
+          <View style={[
+            styles.expenseCard,
+            { backgroundColor: getExpenseCardColor() },
+            filterType === 'expense' && styles.activeCard
+          ]}>
+            <Text style={styles.cardLabel}>Gastos</Text>
+            <Text style={styles.cardAmount}>{formatCurrency(summary.expense)}</Text>
+            <Text style={styles.percentageText}>
+              {percentageSpent.toFixed(1)}% de los ingresos
+            </Text>
+            {filterType === 'expense' && (
+              <Text style={styles.filterIndicator}>✓ Filtro activo</Text>
+            )}
+          </View>
+        </TouchableOpacity>
 
         {/* Transactions List */}
         <View style={styles.transactionsSection}>
-          <Text style={styles.sectionTitle}>Transacciones</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Transacciones</Text>
+            {filterType !== 'all' && (
+              <TouchableOpacity onPress={() => handleFilterChange('all')}>
+                <Text style={styles.clearFilterText}>Limpiar filtro</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -349,52 +410,99 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
           )}
-          {!error && transactions.length === 0 && (
+          {!error && filteredTransactions.length === 0 && (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No hay transacciones este mes</Text>
+              <Text style={styles.emptyText}>
+                {filterType === 'all' 
+                  ? 'No hay transacciones este mes'
+                  : `No hay ${filterType === 'income' ? 'ingresos' : 'gastos'} este mes`
+                }
+              </Text>
             </View>
           )}
-          {!error && transactions.length > 0 && (
-            <View style={styles.transactionsList}>
-              {transactions.map((transaction, index) => (
-                <View key={index} style={styles.transactionItem}>
-                  <View style={styles.transactionLeft}>
-                    <View style={styles.iconContainer}>
-                      <Text style={styles.iconText}>{transaction.icon || '💰'}</Text>
+          {!error && paginatedTransactions.length > 0 && (
+            <React.Fragment>
+              <View style={styles.transactionsList}>
+                {paginatedTransactions.map((transaction, index) => (
+                  <View key={index} style={styles.transactionItem}>
+                    <View style={styles.transactionLeft}>
+                      <View style={styles.iconContainer}>
+                        <Text style={styles.iconText}>{transaction.icon || '💰'}</Text>
+                      </View>
+                      <View style={styles.transactionInfo}>
+                        <Text style={styles.transactionDescription} numberOfLines={1}>
+                          {transaction.description}
+                        </Text>
+                        {transaction.main_category && (
+                          <Text style={styles.transactionCategory} numberOfLines={1}>
+                            {transaction.main_category}
+                            {transaction.subcategory && ` > ${transaction.subcategory}`}
+                          </Text>
+                        )}
+                        {transaction.installment_total && transaction.installment_total > 1 && (
+                          <Text style={styles.installmentText}>
+                            Cuota {transaction.installment_current}/{transaction.installment_total}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                    <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionDescription}>
-                        {transaction.description}
+                    <View style={styles.transactionRight}>
+                      <Text
+                        style={[
+                          styles.transactionAmount,
+                          transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
+                        ]}
+                      >
+                        {formatCurrency(transaction.amount)}
                       </Text>
-                      {transaction.main_category && (
-                        <Text style={styles.transactionCategory}>
-                          {transaction.main_category}
-                          {transaction.subcategory && ` > ${transaction.subcategory}`}
-                        </Text>
-                      )}
-                      {transaction.installment_total && transaction.installment_total > 1 && (
-                        <Text style={styles.installmentText}>
-                          Cuota {transaction.installment_current}/{transaction.installment_total}
-                        </Text>
-                      )}
+                      <Text style={styles.transactionDate}>
+                        {formatTransactionDate(transaction.date)}
+                      </Text>
                     </View>
                   </View>
-                  <View style={styles.transactionRight}>
-                    <Text
-                      style={[
-                        styles.transactionAmount,
-                        transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
-                      ]}
-                    >
-                      {formatCurrency(transaction.amount)}
+                ))}
+              </View>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <View style={styles.paginationContainer}>
+                  <TouchableOpacity
+                    style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+                    onPress={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <IconSymbol
+                      ios_icon_name="chevron.left"
+                      android_material_icon_name="chevron_left"
+                      size={20}
+                      color={currentPage === 1 ? colors.textSecondary : colors.text}
+                    />
+                  </TouchableOpacity>
+                  
+                  <View style={styles.paginationInfo}>
+                    <Text style={styles.paginationText}>
+                      Página {currentPage} de {totalPages}
                     </Text>
-                    <Text style={styles.transactionDate}>
-                      {formatTransactionDate(transaction.date)}
+                    <Text style={styles.paginationSubtext}>
+                      {filteredTransactions.length} transacciones
                     </Text>
                   </View>
+
+                  <TouchableOpacity
+                    style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+                    onPress={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    <IconSymbol
+                      ios_icon_name="chevron.right"
+                      android_material_icon_name="chevron_right"
+                      size={20}
+                      color={currentPage === totalPages ? colors.textSecondary : colors.text}
+                    />
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </View>
+              )}
+            </React.Fragment>
           )}
         </View>
       </ScrollView>
@@ -432,6 +540,8 @@ const styles = StyleSheet.create({
   },
   monthButton: {
     padding: 8,
+    backgroundColor: colors.card,
+    borderRadius: 8,
   },
   monthText: {
     fontSize: 20,
@@ -459,6 +569,10 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  activeCard: {
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
   cardLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -478,14 +592,31 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 8,
   },
+  filterIndicator: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 8,
+    opacity: 0.9,
+  },
   transactionsSection: {
     marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
+  },
+  clearFilterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   errorContainer: {
     backgroundColor: colors.card,
@@ -584,6 +715,37 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   transactionDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  paginationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paginationButtonDisabled: {
+    opacity: 0.3,
+  },
+  paginationInfo: {
+    alignItems: 'center',
+  },
+  paginationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  paginationSubtext: {
     fontSize: 12,
     color: colors.textSecondary,
   },
