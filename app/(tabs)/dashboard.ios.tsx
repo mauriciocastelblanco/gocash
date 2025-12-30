@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
@@ -305,15 +306,15 @@ export default function DashboardScreen() {
 
   if (isLoading && allTransactions.length === 0) {
     return (
-      <View style={[commonStyles.container, styles.container, styles.centerContent]}>
+      <SafeAreaView style={[commonStyles.container, styles.container, styles.centerContent]} edges={['top']}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando dashboard...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[commonStyles.container, styles.container]}>
+    <SafeAreaView style={[commonStyles.container, styles.container]} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -503,7 +504,7 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -526,7 +527,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 220,
   },
   monthSelector: {
     flexDirection: 'row',
@@ -712,7 +713,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 24,
+    marginTop: 32,
+    marginBottom: 40,
     paddingHorizontal: 16,
   },
   paginationButton: {

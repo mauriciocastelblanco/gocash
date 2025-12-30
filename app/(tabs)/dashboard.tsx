@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 140,
+    paddingBottom: 220,
   },
   monthSelector: {
     flexDirection: 'row',
@@ -711,7 +711,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 24,
+    marginTop: 32,
+    marginBottom: 40,
     paddingHorizontal: 16,
   },
   paginationButton: {

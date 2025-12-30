@@ -14,7 +14,6 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
   interpolate,
   Extrapolate,
@@ -155,11 +154,12 @@ export default function LoginScreen() {
     try {
       console.log('[LoginScreen] Attempting login...');
       await signIn(email, password);
-      console.log('[LoginScreen] Login successful, navigating to home...');
+      console.log('[LoginScreen] Login successful, navigating to dashboard...');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      // Navigate immediately after successful login
-      router.replace('/(tabs)/(home)');
+      // Navigate to dashboard after successful login
+      // Use replace to prevent going back to login screen
+      router.replace('/(tabs)/dashboard');
     } catch (error: any) {
       console.error('[LoginScreen] Login error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -39,9 +39,9 @@ export default function Index() {
     const inLoginScreen = segments[0] === 'login';
     
     if (user && !inAuthGroup) {
-      console.log('[Index] User logged in, navigating to home');
+      console.log('[Index] User logged in, navigating to dashboard');
       setHasNavigated(true);
-      router.replace('/(tabs)/(home)');
+      router.replace('/(tabs)/dashboard');
     } else if (!user && inAuthGroup) {
       console.log('[Index] No user but in auth group, navigating to login');
       setHasNavigated(true);
@@ -51,9 +51,9 @@ export default function Index() {
       setHasNavigated(true);
       router.replace('/login');
     } else if (user && segments.length === 0) {
-      console.log('[Index] Initial load, has user, navigating to home');
+      console.log('[Index] Initial load, has user, navigating to dashboard');
       setHasNavigated(true);
-      router.replace('/(tabs)/(home)');
+      router.replace('/(tabs)/dashboard');
     }
   }, [user, isLoading, segmentsPath, hasNavigated, router, segments]);
 
