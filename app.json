@@ -2,11 +2,10 @@
 {
   "expo": {
     "name": "Gocash",
-    "slug": "gocash",
-    "version": "1.0.3",
+    "slug": "Gocash",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
-    "scheme": "gocash",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -28,8 +27,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.gocashchile.app",
-      "versionCode": 4
+      "package": "com.anonymous.Natively"
     },
     "web": {
       "favicon": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
@@ -48,11 +46,13 @@
         }
       ]
     ],
+    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "Gocash"
 }
