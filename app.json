@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "Gocash",
@@ -22,8 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/android-adaptive-icon.png",
-        "monochromeImage": "./assets/images/android-adaptive-icon.png",
+        "foregroundImage": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
@@ -36,15 +34,7 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-web-browser",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "adaptiveIconBackgroundColor": "#000000"
-          }
-        }
-      ]
+      "expo-web-browser"
     ],
     "scheme": "natively",
     "experiments": {
