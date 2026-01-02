@@ -338,7 +338,7 @@ export default function DashboardScreen() {
           >
             <IconSymbol
               ios_icon_name="chevron.left"
-              android_material_icon_name="chevron_left"
+              android_material_icon_name="arrow-back"
               size={28}
               color={colors.text}
             />
@@ -350,7 +350,7 @@ export default function DashboardScreen() {
           >
             <IconSymbol
               ios_icon_name="chevron.right"
-              android_material_icon_name="chevron_right"
+              android_material_icon_name="arrow-forward"
               size={28}
               color={colors.text}
             />
@@ -478,7 +478,7 @@ export default function DashboardScreen() {
                   >
                     <IconSymbol
                       ios_icon_name="chevron.left"
-                      android_material_icon_name="chevron_left"
+                      android_material_icon_name="arrow-back"
                       size={20}
                       color={currentPage === 1 ? colors.textSecondary : colors.text}
                     />
@@ -500,7 +500,7 @@ export default function DashboardScreen() {
                   >
                     <IconSymbol
                       ios_icon_name="chevron.right"
-                      android_material_icon_name="chevron_right"
+                      android_material_icon_name="arrow-forward"
                       size={20}
                       color={currentPage === totalPages ? colors.textSecondary : colors.text}
                     />

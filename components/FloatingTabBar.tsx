@@ -208,7 +208,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 9999999,
-    elevation: 9999999,
+    ...Platform.select({
+      android: {
+        elevation: 200,
+      },
+      ios: {
+        zIndex: 9999999,
+      },
+    }),
     alignItems: 'center',
     pointerEvents: 'box-none',
   },
@@ -217,7 +224,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     pointerEvents: 'auto',
     zIndex: 9999999,
-    elevation: 9999999,
+    ...Platform.select({
+      android: {
+        elevation: 200,
+      },
+      ios: {
+        zIndex: 9999999,
+      },
+    }),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -226,7 +240,18 @@ const styles = StyleSheet.create({
   blurContainer: {
     overflow: 'hidden',
     zIndex: 9999999,
-    elevation: 9999999,
+    ...Platform.select({
+      android: {
+        elevation: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.5,
+        shadowRadius: 16,
+      },
+      ios: {
+        zIndex: 9999999,
+      },
+    }),
   },
   background: {
     ...StyleSheet.absoluteFillObject,
