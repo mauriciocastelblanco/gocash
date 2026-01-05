@@ -1,433 +1,298 @@
 
-import { useAuth } from '@/contexts/AuthContext';
-import React, { useState } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Modal,
-} from 'react-native';
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { IconSymbol } from "@/components/IconSymbol.ios";
+import { GlassView } from "expo-glass-effect";
+import { useTheme } from "@react-navigation/native";
+import { supabase } from "@/app/integrations/supabase/client";
+import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
+
+async function deleteUserAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return { success: false, error: 'No se encontró usuario autenticado' };
+    }
+
+    console.log('[DELETE-ACCOUNT] Iniciando eliminación para usuario:', user.id);
+
+    const { data, error } = await supabase.functions.invoke('delete-user-account', {
+      body: { userId: user.id }
+    });
+
+    if (error) {
+      console.error('[DELETE-ACCOUNT] Error en Edge Function:', error);
+      return { success: false, error: error.message || 'Error al eliminar la cuenta' };
+    }
+
+    console.log('[DELETE-ACCOUNT] Cuenta eliminada exitosamente:', data);
+    await supabase.auth.signOut();
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[DELETE-ACCOUNT] Error inesperado:', error);
+    return { success: false, error: error.message || 'Error inesperado' };
+  }
+}
+
+export default function ProfileScreen() {
+  const theme = useTheme();
+  const router = useRouter();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (confirmText.toUpperCase() !== 'ELIMINAR') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Debes escribir "ELIMINAR" para confirmar');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setIsDeleting(true);
+
+    try {
+      const result = await deleteUserAccount();
+
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert(
+          'Cuenta Eliminada',
+          'Tu cuenta ha sido eliminada permanentemente',
+          [{ text: 'OK', onPress: () => router.replace('/login') }]
+        );
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Error', result.error || 'No se pudo eliminar la cuenta');
+      }
+    } finally {
+      setIsDeleting(false);
+      setConfirmText('');
+      setShowDeleteModal(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
+        <GlassView style={styles.profileHeader} glassEffectStyle="regular">
+          <IconSymbol ios_icon_name="person.circle.fill" android_material_icon_name="person" size={80} color={theme.colors.primary} />
+          <Text style={[styles.name, { color: theme.colors.text }]}>John Doe</Text>
+          <Text style={[styles.email, { color: theme.dark ? '#98989D' : '#666' }]}>john.doe@example.com</Text>
+        </GlassView>
+
+        <GlassView style={styles.section} glassEffectStyle="regular">
+          <View style={styles.infoRow}>
+            <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={20} color={theme.dark ? '#98989D' : '#666'} />
+            <Text style={[styles.infoText, { color: theme.colors.text }]}>+1 (555) 123-4567</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={20} color={theme.dark ? '#98989D' : '#666'} />
+            <Text style={[styles.infoText, { color: theme.colors.text }]}>San Francisco, CA</Text>
+          </View>
+        </GlassView>
+
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowDeleteModal(true);
+          }}
+        >
+          <IconSymbol ios_icon_name="trash.fill" android_material_icon_name="delete" size={20} color="#FF3B30" />
+          <Text style={styles.deleteButtonText}>Eliminar Cuenta</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <GlassView style={styles.modalContent} glassEffectStyle="prominent">
+            <IconSymbol ios_icon_name="exclamationmark.triangle.fill" android_material_icon_name="warning" size={48} color="#FF3B30" />
+            
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>¿Eliminar Cuenta?</Text>
+            <Text style={[styles.modalDescription, { color: theme.dark ? '#98989D' : '#666' }]}>
+              Esta acción es permanente y no se puede deshacer. Se eliminarán todos tus datos.
+            </Text>
+
+            <Text style={[styles.modalLabel, { color: theme.colors.text }]}>
+              Escribe "ELIMINAR" para confirmar:
+            </Text>
+            <TextInput
+              style={[styles.modalInput, { 
+                backgroundColor: theme.dark ? '#2C2C2E' : '#F2F2F7',
+                color: theme.colors.text,
+                borderColor: confirmText.toUpperCase() === 'ELIMINAR' ? '#52DF68' : (theme.dark ? '#3A3A3C' : '#E5E5EA')
+              }]}
+              value={confirmText}
+              onChangeText={setConfirmText}
+              placeholder="ELIMINAR"
+              placeholderTextColor={theme.dark ? '#666' : '#999'}
+              autoCapitalize="characters"
+              editable={!isDeleting}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowDeleteModal(false);
+                  setConfirmText('');
+                }}
+                disabled={isDeleting}
+              >
+                <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton, {
+                  opacity: (confirmText.toUpperCase() === 'ELIMINAR' && !isDeleting) ? 1 : 0.5
+                }]}
+                onPress={handleDeleteAccount}
+                disabled={confirmText.toUpperCase() !== 'ELIMINAR' || isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>Eliminar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </GlassView>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
-  content: {
+  contentContainer: {
     padding: 20,
   },
-  header: {
-    marginBottom: 30,
+  profileHeader: {
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 32,
+    marginBottom: 16,
+    gap: 12,
   },
-  title: {
-    fontSize: 32,
+  name: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
   },
-  subtitle: {
+  email: {
     fontSize: 16,
-    color: colors.textSecondary,
   },
   section: {
-    marginBottom: 24,
+    borderRadius: 12,
+    padding: 20,
+    gap: 12,
+    marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  menuItem: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    gap: 12,
   },
-  menuItemText: {
+  infoText: {
     fontSize: 16,
-    color: colors.text,
   },
-  arrow: {
-    fontSize: 18,
-    color: colors.textSecondary,
-  },
-  signOutButton: {
-    backgroundColor: '#FF3B30',
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 20,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
   },
-  signOutText: {
-    color: '#FFFFFF',
+  deleteButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FF3B30',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.card,
+    width: '100%',
+    maxWidth: 400,
     borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
+    padding: 24,
+    alignItems: 'center',
+    gap: 16,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 16,
   },
-  modalText: {
+  modalDescription: {
     fontSize: 14,
-    color: colors.text,
-    lineHeight: 22,
-    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  modalSection: {
-    marginBottom: 16,
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    alignSelf: 'flex-start',
   },
-  modalSectionTitle: {
+  modalInput: {
+    width: '100%',
+    padding: 12,
+    borderRadius: 8,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary,
-    marginBottom: 8,
+    borderWidth: 2,
   },
-  closeButton: {
-    backgroundColor: colors.primary,
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
   },
-  closeButtonText: {
-    color: '#000000',
+  cancelButton: {
+    backgroundColor: 'rgba(120, 120, 128, 0.16)',
+  },
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  confirmButton: {
+    backgroundColor: '#FF3B30',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });
-
-export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
-  const [showAboutModal, setShowAboutModal] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-
-  const handleAboutPress = () => {
-    setShowAboutModal(true);
-  };
-
-  const handleTermsPress = () => {
-    setShowTermsModal(true);
-  };
-
-  const handlePrivacyPress = () => {
-    setShowPrivacyModal(true);
-  };
-
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro que deseas cerrar sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Perfil</Text>
-          <Text style={styles.subtitle}>{user?.email}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información</Text>
-          
-          <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
-            <Text style={styles.menuItemText}>Acerca de</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
-            <Text style={styles.menuItemText}>Términos y Condiciones</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handlePrivacyPress}>
-            <Text style={styles.menuItemText}>Política de Privacidad</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Cerrar Sesión</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* About Modal */}
-      <Modal
-        visible={showAboutModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAboutModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Acerca de Gocash</Text>
-            <ScrollView>
-              <Text style={styles.modalText}>
-                Gocash es una aplicación de gestión financiera personal que te ayuda a controlar tus gastos e ingresos de manera simple y efectiva.
-              </Text>
-              <Text style={styles.modalText}>
-                Versión: 1.0.0
-              </Text>
-              <Text style={styles.modalText}>
-                Desarrollado por CCL TECHNOLOGIES
-              </Text>
-              <Text style={styles.modalText}>
-                RUT: 78.115.917-4
-              </Text>
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowAboutModal(false)}
-            >
-              <Text style={styles.closeButtonText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Terms Modal */}
-      <Modal
-        visible={showTermsModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowTermsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Términos y Condiciones</Text>
-            <ScrollView>
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>1) Aceptación</Text>
-                <Text style={styles.modalText}>
-                  Al registrarte, acceder o usar Gocash ("la Plataforma"), aceptas estos Términos y Condiciones y la Política de Privacidad. Si no estás de acuerdo, no uses la plataforma.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>2) Qué es Gocash</Text>
-                <Text style={styles.modalText}>
-                  Gocash es una billetera digital que te permite:{'\n\n'}
-                  • Registrar y ver gastos e ingresos.{'\n'}
-                  • Analizar hábitos de consumo.{'\n'}
-                  • Recibir ayuda en gestión y cobro de pagos.{'\n'}
-                  • Hacer y recibir transferencias entre cuentas compatibles.{'\n\n'}
-                  Gocash no es un banco ni una institución financiera regulada, y los saldos no generan intereses.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>3) Registro y datos</Text>
-                <Text style={styles.modalText}>
-                  Para usar Gocash debes:{'\n\n'}
-                  • Ser mayor de 18 años.{'\n'}
-                  • Registrarte con información real, actual y completa.{'\n'}
-                  • Cuidar tus credenciales de acceso.{'\n\n'}
-                  Podemos pedir información o documentos para verificar identidad y prevenir fraudes.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>4) Uso permitido</Text>
-                <Text style={styles.modalText}>
-                  Te comprometes a:{'\n\n'}
-                  • Usar la plataforma solo con fines legales.{'\n'}
-                  • No usarla para fraudes, lavado de dinero o financiamiento del terrorismo.{'\n'}
-                  • No afectar el funcionamiento técnico o la seguridad de la plataforma.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>5) Seguridad de cuenta</Text>
-                <Text style={styles.modalText}>
-                  Eres responsable de:{'\n\n'}
-                  • Mantener tus contraseñas confidenciales.{'\n'}
-                  • Avisarnos de inmediato si detectas accesos no autorizados.{'\n\n'}
-                  Aplicamos medidas de seguridad, pero no podemos garantizar seguridad absoluta.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>6) Membresías, comisiones y tarifas</Text>
-                <Text style={styles.modalText}>
-                  Algunos servicios pueden tener costos:{'\n\n'}
-                  • Membresía mensual: para funciones premium. El monto se informa al registrarte y puede cambiar con aviso mínimo de 15 días.{'\n'}
-                  • Comisión por transacción: si usas Gocash para cobro de deudas a terceros, se aplicará una comisión informada antes del pago y descontada automáticamente.{'\n\n'}
-                  Valores en CLP, con o sin IVA según corresponda. Si no pagas la membresía, podemos suspender o limitar funciones hasta regularización.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>7) Limitación de responsabilidad</Text>
-                <Text style={styles.modalText}>
-                  Gocash no responde por:{'\n\n'}
-                  • Uso indebido de tus credenciales.{'\n'}
-                  • Caídas del servicio por causas externas (internet, fallas técnicas, fuerza mayor).{'\n'}
-                  • Daños indirectos, lucro cesante o pérdida de datos.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>8) Datos personales</Text>
-                <Text style={styles.modalText}>
-                  Tratamos datos según la Ley 19.628 y normas aplicables. Usamos la información solo para prestar el servicio y no la compartimos con terceros no autorizados.{'\n\n'}
-                  Contacto: contacto@gocash.cl
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>9) Cambios</Text>
-                <Text style={styles.modalText}>
-                  Podemos actualizar estos términos con aviso previo. Si sigues usando la plataforma, se entiende que aceptas los cambios.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>10) Ley y jurisdicción</Text>
-                <Text style={styles.modalText}>
-                  Se aplica la ley de Chile. Cualquier disputa se verá en tribunales de Santiago de Chile.
-                </Text>
-              </View>
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowTermsModal(false)}
-            >
-              <Text style={styles.closeButtonText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Privacy Modal */}
-      <Modal
-        visible={showPrivacyModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPrivacyModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Política de Privacidad</Text>
-            <ScrollView>
-              <Text style={styles.modalText}>
-                En Gocash, operada por CCL TECHNOLOGIES (RUT: 78.115.917-4), protegemos tu privacidad. Esta política explica qué datos recopilamos, para qué los usamos y cómo los cuidamos.
-              </Text>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>1) Datos que recopilamos</Text>
-                <Text style={styles.modalText}>
-                  • Identificación: nombre, RUT, fecha de nacimiento, email, teléfono y datos necesarios para verificar tu identidad.{'\n\n'}
-                  • Financieros: cuentas asociadas, transacciones, cobros y pagos dentro de la plataforma.{'\n\n'}
-                  • Uso: interacción con la app/web, IP, dispositivo, sistema operativo y navegación.{'\n\n'}
-                  • Voluntarios: datos que nos entregues en formularios, encuestas, soporte u otros canales.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>2) Para qué usamos tus datos</Text>
-                <Text style={styles.modalText}>
-                  Para: operar y mantener Gocash, procesar pagos/transferencias/cobros, analizar hábitos de gastos e ingresos, prevenir fraudes o usos ilegales, cumplir obligaciones legales, mejorar el servicio y enviarte comunicaciones del servicio (actualizaciones, cambios y alertas de seguridad).
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>3) Base legal</Text>
-                <Text style={styles.modalText}>
-                  Usamos tus datos por: tu consentimiento, la ejecución del contrato (Términos y Condiciones) y el cumplimiento de leyes aplicables en Chile.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>4) Conservación</Text>
-                <Text style={styles.modalText}>
-                  Guardamos tus datos mientras tu cuenta esté activa y el tiempo necesario para cumplir obligaciones legales, resolver disputas o atender requerimientos regulatorios.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>5) Con quién compartimos datos</Text>
-                <Text style={styles.modalText}>
-                  Solo con:{'\n\n'}
-                  • Proveedores que operan la plataforma (pagos, hosting, verificación de identidad, soporte).{'\n'}
-                  • Autoridades, si la ley lo exige.{'\n'}
-                  • Socios comerciales, solo con tu consentimiento.{'\n\n'}
-                  No vendemos tu información personal.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>6) Seguridad</Text>
-                <Text style={styles.modalText}>
-                  Usamos medidas como encriptación, controles de acceso y monitoreo. Aun así, ningún sistema es 100% invulnerable.
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>7) Tus derechos (Ley 19.628)</Text>
-                <Text style={styles.modalText}>
-                  Puedes acceder, rectificar, solicitar eliminación (si aplica), oponerte a marketing y pedir suspensión temporal del tratamiento.{'\n\n'}
-                  Contacto: contacto@gocash.cl
-                </Text>
-              </View>
-
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>8) Cookies</Text>
-                <Text style={styles.modalText}>
-                  Podemos usar cookies para mejorar la experiencia y analizar el uso. Puedes desactivarlas, pero algunas funciones pueden fallar.
-                </Text>
-              </View>
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowPrivacyModal(false)}
-            >
-              <Text style={styles.closeButtonText}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
-}
