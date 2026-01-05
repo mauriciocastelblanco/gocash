@@ -22,6 +22,7 @@ import { getUserActiveWorkspace } from '@/lib/transactions';
 import { IconSymbol } from '@/components/IconSymbol';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import { SwipeableTransaction } from '@/components/SwipeableTransaction';
 
 interface Transaction {
   id: string;
@@ -558,66 +559,14 @@ export default function HomeScreen() {
             <React.Fragment>
               <View style={styles.transactionsList}>
                 {paginatedTransactions.map((transaction, index) => (
-                  <View key={index} style={styles.transactionItem}>
-                    <View style={styles.transactionLeft}>
-                      <View style={styles.iconContainer}>
-                        <Text style={styles.iconText}>{transaction.icon || '💰'}</Text>
-                      </View>
-                      <View style={styles.transactionInfo}>
-                        <Text style={styles.transactionDescription} numberOfLines={1}>
-                          {transaction.description}
-                        </Text>
-                        {transaction.main_category && (
-                          <Text style={styles.transactionCategory} numberOfLines={1}>
-                            {transaction.main_category}
-                            {transaction.subcategory && ` > ${transaction.subcategory}`}
-                          </Text>
-                        )}
-                        {transaction.installment_total && transaction.installment_total > 1 && (
-                          <Text style={styles.installmentText}>
-                            Cuota {transaction.installment_current}/{transaction.installment_total}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    <View style={styles.transactionRight}>
-                      <Text
-                        style={[
-                          styles.transactionAmount,
-                          transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
-                        ]}
-                      >
-                        {formatCurrency(transaction.amount)}
-                      </Text>
-                      <Text style={styles.transactionDate}>
-                        {formatTransactionDate(transaction.date)}
-                      </Text>
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleEditTransaction(transaction)}
-                        >
-                          <IconSymbol
-                            ios_icon_name="pencil"
-                            android_material_icon_name="edit"
-                            size={18}
-                            color={colors.primary}
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.actionButton}
-                          onPress={() => handleDeleteTransaction(transaction)}
-                        >
-                          <IconSymbol
-                            ios_icon_name="trash"
-                            android_material_icon_name="delete"
-                            size={18}
-                            color="#EF4444"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
+                  <SwipeableTransaction
+                    key={index}
+                    transaction={transaction}
+                    onEdit={handleEditTransaction}
+                    onDelete={handleDeleteTransaction}
+                    formatCurrency={formatCurrency}
+                    formatDate={formatTransactionDate}
+                  />
                 ))}
               </View>
 
@@ -795,7 +744,7 @@ const styles = StyleSheet.create({
   },
   monthButton: {
     padding: 8,
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 8,
   },
   monthText: {
@@ -867,7 +816,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   errorContainer: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
@@ -890,7 +839,7 @@ const styles = StyleSheet.create({
     color: colors.background,
   },
   emptyContainer: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 48,
     alignItems: 'center',
@@ -901,80 +850,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   transactionsList: {
-    gap: 12,
-  },
-  transactionItem: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  iconText: {
-    fontSize: 20,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionDescription: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  transactionCategory: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  installmentText: {
-    fontSize: 11,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  transactionRight: {
-    alignItems: 'flex-end',
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  incomeAmount: {
-    color: '#22C55E',
-  },
-  expenseAmount: {
-    color: '#EF4444',
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 6,
-    backgroundColor: colors.background,
-    borderRadius: 6,
+    gap: 0,
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -988,7 +864,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1025,7 +901,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBackground,
+    borderBottomColor: colors.card,
   },
   modalTitle: {
     fontSize: 20,
@@ -1043,14 +919,14 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   input: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     color: colors.text,
   },
   dateButton: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -1066,7 +942,7 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.cardBackground,
+    borderTopColor: colors.card,
   },
   modalButton: {
     flex: 1,
@@ -1075,7 +951,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
   },
   cancelButtonText: {
     fontSize: 16,
