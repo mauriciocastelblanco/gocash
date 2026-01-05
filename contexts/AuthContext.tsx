@@ -91,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { email, password, nombre, numero_celular, codigo_celular } = data;
 
       console.log('[AuthContext] Starting sign up process...');
-      console.log('[AuthContext] Phone number to store:', numero_celular);
 
       // Check if email exists
       console.log('[AuthContext] Checking if email exists...');
@@ -141,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('[AuthContext] Sign up error:', error);
-        return { success: false, error: translateError(error.message) };
+        return { success: false, error: error.message };
       }
 
       console.log('[AuthContext] Sign up successful');
@@ -207,15 +206,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
-// Helper function to translate error messages
-function translateError(error: string): string {
-  const translations: Record<string, string> = {
-    'User already registered': 'Este email ya está registrado',
-    'Invalid email': 'El email no es válido',
-    'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres',
-    'Email rate limit exceeded': 'Demasiados intentos. Intenta en unos minutos',
-  };
-  return translations[error] || error;
 }
