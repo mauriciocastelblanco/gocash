@@ -1,6 +1,6 @@
 
-import { useAuth } from '@/contexts/AuthContext';
-import React, { useState } from 'react';
+import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   View,
@@ -11,26 +11,28 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import React, { useState } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 import {
   isValidEmail,
   isValidChileanPhone,
   formatPhoneForStorage,
   translateError,
 } from '@/lib/validation';
+import { useAuth } from '@/contexts/AuthContext';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#101824',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -42,107 +44,85 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
-    fontSize: 64,
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#9CA3AF',
+    fontSize: 14,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 32,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
+    ...commonStyles.input,
     fontSize: 16,
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#374151',
   },
   phoneContainer: {
     flexDirection: 'row',
     gap: 8,
   },
-  countryCodeInput: {
-    width: 70,
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
+  phoneCodeInput: {
+    ...commonStyles.input,
+    width: 60,
     fontSize: 16,
-    color: '#9CA3AF',
-    borderWidth: 1,
-    borderColor: '#374151',
     textAlign: 'center',
+    color: colors.textSecondary,
   },
-  phoneInput: {
+  phoneNumberInput: {
+    ...commonStyles.input,
     flex: 1,
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
     fontSize: 16,
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#374151',
   },
   helperText: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: colors.textSecondary,
     marginTop: 4,
-    opacity: 0.6,
   },
   button: {
-    backgroundColor: '#52DF68',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+    ...buttonStyles.primary,
     marginTop: 8,
-    shadowColor: '#52DF68',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   buttonText: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: 'bold',
+    ...buttonStyles.primaryText,
   },
   footerText: {
-    textAlign: 'center',
-    color: '#9CA3AF',
-    marginTop: 24,
     fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 24,
   },
   linkText: {
-    color: '#52DF68',
+    color: colors.primary,
     fontWeight: '600',
   },
 });
 
 export default function SignUpScreen() {
-  const { signUp, signIn } = useAuth();
-  const router = useRouter();
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [numeroCelular, setNumeroCelular] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const router = useRouter();
+  const { signUp, signIn } = useAuth();
 
   const buttonScale = useSharedValue(1);
 
@@ -152,63 +132,83 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     try {
-      // Validation
+      // Validate required fields
       if (!nombre.trim()) {
-        Alert.alert('Error', 'El nombre es obligatorio');
+        Alert.alert('Error', 'Por favor ingresa tu nombre');
         return;
       }
 
-      if (!isValidEmail(email)) {
-        Alert.alert('Error', 'Email inválido');
+      if (!email.trim() || !isValidEmail(email)) {
+        Alert.alert('Error', 'Por favor ingresa un email válido');
         return;
       }
 
-      if (password.length < 6) {
+      if (!password || password.length < 6) {
         Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
         return;
       }
 
-      if (numeroCelular && !isValidChileanPhone(numeroCelular)) {
-        Alert.alert('Error', 'Número de celular inválido');
-        return;
+      // Validate phone if provided
+      let formattedPhone = '';
+      if (numeroCelular.trim()) {
+        if (!isValidChileanPhone(numeroCelular)) {
+          Alert.alert('Error', 'Número de celular inválido. Debe ser chileno de 9 dígitos');
+          return;
+        }
+        formattedPhone = formatPhoneForStorage(numeroCelular);
       }
 
       setIsLoading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const formattedPhone = numeroCelular ? formatPhoneForStorage(numeroCelular) : '';
+      buttonScale.value = withSpring(0.95);
+      setTimeout(() => {
+        buttonScale.value = withSpring(1);
+      }, 100);
 
-      console.log('📝 Signing up user:', { email, nombre, formattedPhone });
+      console.log('[SignUp] Creating account with formatted phone:', formattedPhone);
 
-      // Sign up
-      const result = await signUp({
-        email,
+      const { success, error } = await signUp({
+        email: email.trim().toLowerCase(),
         password,
         nombre: nombre.trim(),
         numero_celular: formattedPhone,
         codigo_celular: '+56',
       });
 
-      if (result.error) {
-        Alert.alert('Error', result.error);
+      if (!success) {
+        Alert.alert('Error', translateError(error || 'No se pudo crear la cuenta'));
         setIsLoading(false);
         return;
       }
 
-      console.log('✅ Sign up successful, now signing in...');
+      console.log('[SignUp] Account created successfully, auto-logging in...');
 
-      // Auto-login after successful signup
-      await signIn(email, password);
-
-      console.log('✅ Auto-login successful, redirecting to dashboard...');
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // Navigate to dashboard
-      router.replace('/(tabs)/dashboard');
+      // Auto sign-in after successful registration
+      try {
+        await signIn(email.trim().toLowerCase(), password);
+        console.log('[SignUp] Auto-login successful');
+        
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/(tabs)/dashboard');
+      } catch (signInError: any) {
+        console.error('[SignUp] Auto-login failed:', signInError);
+        // If auto-login fails, redirect to login screen
+        Alert.alert(
+          'Cuenta creada',
+          'Tu cuenta fue creada exitosamente. Por favor inicia sesión.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/login'),
+            },
+          ]
+        );
+      }
     } catch (error: any) {
-      console.error('❌ Sign up error:', error);
-      Alert.alert('Error', translateError(error.message || 'Error al crear cuenta'));
+      console.error('[SignUp] Sign up error:', error);
+      Alert.alert('Error', translateError(error.message || 'Ocurrió un error inesperado'));
+    } finally {
       setIsLoading(false);
     }
   };
@@ -223,70 +223,80 @@ export default function SignUpScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>💰</Text>
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+          />
         </View>
 
         <Text style={styles.title}>Crear Cuenta</Text>
-        <Text style={styles.subtitle}>Registra tus datos para comenzar</Text>
+        <Text style={styles.subtitle}>
+          💡 Completa tus datos para registrarte en Gocash.cl
+        </Text>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Nombre *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Mauricio"
-            placeholderTextColor="#6B7280"
+            placeholder="Tu nombre completo"
+            placeholderTextColor={colors.textSecondary}
             value={nombre}
             onChangeText={setNombre}
             autoCapitalize="words"
+            editable={!isLoading}
           />
-          <Text style={styles.helperText}>El nombre es obligatorio</Text>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Email *</Text>
           <TextInput
             style={styles.input}
-            placeholder="mabri10@gmail.com"
-            placeholderTextColor="#6B7280"
+            placeholder="tu@email.com"
+            placeholderTextColor={colors.textSecondary}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isLoading}
           />
-          <Text style={styles.helperText}>El email es obligatorio</Text>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Contraseña *</Text>
           <TextInput
             style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#6B7280"
+            placeholder="Mínimo 6 caracteres"
+            placeholderTextColor={colors.textSecondary}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            editable={!isLoading}
           />
-          <Text style={styles.helperText}>La contraseña es obligatoria</Text>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Celular (Opcional)</Text>
           <View style={styles.phoneContainer}>
             <TextInput
-              style={styles.countryCodeInput}
+              style={styles.phoneCodeInput}
               value="+56"
               editable={false}
             />
             <TextInput
-              style={styles.phoneInput}
+              style={styles.phoneNumberInput}
               placeholder="959113551"
-              placeholderTextColor="#6B7280"
+              placeholderTextColor={colors.textSecondary}
               value={numeroCelular}
               onChangeText={setNumeroCelular}
               keyboardType="phone-pad"
               maxLength={9}
+              editable={!isLoading}
             />
           </View>
+          <Text style={styles.helperText}>
+            Número chileno de 9 dígitos (ej: 912345678)
+          </Text>
         </View>
 
         <Animated.View style={buttonAnimatedStyle}>
@@ -294,15 +304,9 @@ export default function SignUpScreen() {
             style={styles.button}
             onPress={handleSignUp}
             disabled={isLoading}
-            onPressIn={() => {
-              buttonScale.value = withSpring(0.95);
-            }}
-            onPressOut={() => {
-              buttonScale.value = withSpring(1);
-            }}
           >
             {isLoading ? (
-              <ActivityIndicator color="#000000" />
+              <ActivityIndicator color={colors.background} />
             ) : (
               <Text style={styles.buttonText}>Crear Cuenta</Text>
             )}
