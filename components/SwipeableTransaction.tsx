@@ -1,6 +1,6 @@
 
-import React, { useRef, forwardRef, useImperativeHandle } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -10,9 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/styles/commonStyles';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = -120;
+import { IconSymbol } from './IconSymbol';
 
 interface Transaction {
   id: string;
@@ -23,8 +21,6 @@ interface Transaction {
   main_category: string | null;
   subcategory: string | null;
   icon: string | null;
-  installment_current?: number;
-  installment_total?: number;
 }
 
 interface SwipeableTransactionProps {
@@ -35,168 +31,122 @@ interface SwipeableTransactionProps {
   formatDate: (dateString: string) => string;
 }
 
-export interface SwipeableTransactionRef {
-  close: () => void;
-}
+const SWIPE_THRESHOLD = -80;
+const ACTION_WIDTH = 160;
 
-export const SwipeableTransaction = forwardRef<SwipeableTransactionRef, SwipeableTransactionProps>(
-  ({ transaction, onEdit, onDelete, formatCurrency, formatDate }, ref) => {
-    const translateX = useSharedValue(0);
-    const isOpen = useRef(false);
+export function SwipeableTransaction({
+  transaction,
+  onEdit,
+  onDelete,
+  formatCurrency,
+  formatDate,
+}: SwipeableTransactionProps) {
+  const translateX = useSharedValue(ACTION_WIDTH);
+  const isOpen = useSharedValue(false);
 
-    useImperativeHandle(ref, () => ({
-      close: () => {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 90 });
-        isOpen.current = false;
-      },
-    }));
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
 
-    const panGesture = Gesture.Pan()
-      .onUpdate((event) => {
-        const newTranslateX = event.translationX;
-        if (newTranslateX < 0) {
-          translateX.value = Math.max(newTranslateX, SWIPE_THRESHOLD);
-        } else if (isOpen.current) {
-          translateX.value = Math.min(newTranslateX + SWIPE_THRESHOLD, 0);
-        }
-      })
-      .onEnd(() => {
-        if (translateX.value < SWIPE_THRESHOLD / 2) {
-          translateX.value = withSpring(SWIPE_THRESHOLD, { damping: 20, stiffness: 90 });
-          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-          isOpen.current = true;
-        } else {
-          translateX.value = withSpring(0, { damping: 20, stiffness: 90 });
-          isOpen.current = false;
-        }
-      });
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      // Only allow left swipe
+      if (event.translationX < 0) {
+        // Map gesture translation to button position
+        // When translationX is 0, buttons are at ACTION_WIDTH (hidden)
+        // When translationX is -ACTION_WIDTH, buttons are at 0 (fully visible)
+        const newPosition = ACTION_WIDTH + event.translationX;
+        translateX.value = Math.max(0, Math.min(ACTION_WIDTH, newPosition));
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationX < SWIPE_THRESHOLD) {
+        // Fully reveal buttons
+        translateX.value = withSpring(0, {
+          damping: 20,
+          stiffness: 300,
+        });
+        isOpen.value = true;
+        runOnJS(triggerHaptic)();
+      } else {
+        // Hide buttons
+        translateX.value = withSpring(ACTION_WIDTH, {
+          damping: 20,
+          stiffness: 300,
+        });
+        isOpen.value = false;
+      }
+    });
 
-    const animatedStyle = useAnimatedStyle(() => ({
+  const actionsAnimatedStyle = useAnimatedStyle(() => {
+    return {
       transform: [{ translateX: translateX.value }],
-    }));
-
-    const handleEdit = () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      translateX.value = withSpring(0, { damping: 20, stiffness: 90 });
-      isOpen.current = false;
-      setTimeout(() => onEdit(transaction), 100);
     };
+  });
 
-    const handleDelete = () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      translateX.value = withSpring(0, { damping: 20, stiffness: 90 });
-      isOpen.current = false;
-      setTimeout(() => onDelete(transaction), 100);
-    };
+  const handleEdit = () => {
+    translateX.value = withSpring(ACTION_WIDTH);
+    isOpen.value = false;
+    onEdit(transaction);
+  };
 
-    return (
-      <View style={styles.container}>
-        {/* Action buttons - positioned absolutely with higher z-index and auto pointer events */}
-        <View style={styles.actionsContainer} pointerEvents="auto">
-          <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
-            onPress={handleEdit}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.actionIcon}>✏️</Text>
-            <Text style={styles.actionText}>Editar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={handleDelete}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.actionIcon}>🗑️</Text>
-            <Text style={styles.actionText}>Eliminar</Text>
-          </TouchableOpacity>
-        </View>
+  const handleDelete = () => {
+    translateX.value = withSpring(ACTION_WIDTH);
+    isOpen.value = false;
+    onDelete(transaction);
+  };
 
-        {/* Transaction card - swipeable */}
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={[styles.transactionCard, animatedStyle]}>
-            <View style={styles.iconContainer}>
-              <Text style={styles.icon}>{transaction.icon || '💰'}</Text>
-            </View>
-            <View style={styles.detailsContainer}>
-              <Text style={styles.description}>{transaction.description}</Text>
-              <Text style={styles.category}>
-                {transaction.main_category}
-                {transaction.subcategory ? ` • ${transaction.subcategory}` : ''}
-              </Text>
-              {transaction.installment_total && transaction.installment_total > 1 && (
-                <Text style={styles.installment}>
-                  Cuota {transaction.installment_current}/{transaction.installment_total}
-                </Text>
-              )}
-              <Text style={styles.date}>{formatDate(transaction.date)}</Text>
-            </View>
-            <Text
-              style={[
-                styles.amount,
-                transaction.type === 'income' ? styles.income : styles.expense,
-              ]}
-            >
-              {transaction.type === 'income' ? '+' : '-'}
-              {formatCurrency(transaction.amount)}
+  return (
+    <View style={styles.container}>
+      {/* Transaction Card - Bottom Layer (stationary) */}
+      <GestureDetector gesture={panGesture}>
+        <View style={styles.transactionCard}>
+          <View style={styles.iconContainer}>
+            <Text style={styles.icon}>{transaction.icon || '💰'}</Text>
+          </View>
+          <View style={styles.detailsContainer}>
+            <Text style={styles.description}>{transaction.description}</Text>
+            <Text style={styles.category}>
+              {transaction.main_category}
+              {transaction.subcategory ? ` > ${transaction.subcategory}` : ''}
             </Text>
-          </Animated.View>
-        </GestureDetector>
-      </View>
-    );
-  }
-);
+            <Text style={styles.date}>{formatDate(transaction.date)}</Text>
+          </View>
+          <Text
+            style={[
+              styles.amount,
+              transaction.type === 'income' ? styles.income : styles.expense,
+            ]}
+          >
+            {formatCurrency(transaction.amount)}
+          </Text>
+        </View>
+      </GestureDetector>
+
+      {/* Action Buttons - Top Layer (slides over from right) */}
+      <Animated.View style={[styles.actionsContainer, actionsAnimatedStyle]}>
+        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+          <IconSymbol ios_icon_name="pencil" android_material_icon_name="edit" size={20} color="#fff" />
+          <Text style={styles.actionText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+          <IconSymbol ios_icon_name="trash" android_material_icon_name="delete" size={20} color="#fff" />
+          <Text style={styles.actionText}>Eliminar</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     marginBottom: 12,
     position: 'relative',
-    height: 96,
-  },
-  actionsContainer: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingRight: 16,
-    zIndex: 100,
-  },
-  actionButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  editButton: {
-    backgroundColor: colors.primary,
-  },
-  deleteButton: {
-    backgroundColor: '#FF4444',
-  },
-  actionIcon: {
-    fontSize: 24,
-  },
-  actionText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+    overflow: 'hidden',
   },
   transactionCard: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     backgroundColor: colors.cardBackground,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,17 +157,48 @@ const styles = StyleSheet.create({
     elevation: 3,
     zIndex: 1,
   },
+  actionsContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: ACTION_WIDTH,
+    flexDirection: 'row',
+    zIndex: 2,
+  },
+  editButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   icon: {
-    fontSize: 24,
+    fontSize: 20,
   },
   detailsContainer: {
     flex: 1,
@@ -229,28 +210,22 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   category: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  installment: {
     fontSize: 12,
-    color: colors.primary,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   date: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   amount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    marginLeft: 12,
   },
   income: {
     color: colors.primary,
   },
   expense: {
-    color: '#FF4444',
+    color: '#FF3B30',
   },
 });

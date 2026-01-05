@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import { getUserActiveWorkspace } from '@/lib/transactions';
 import { IconSymbol } from '@/components/IconSymbol';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { SwipeableTransaction, SwipeableTransactionRef } from '@/components/SwipeableTransaction';
+import { SwipeableTransaction } from '@/components/SwipeableTransaction';
 
 interface Transaction {
   id: string;
@@ -68,9 +68,6 @@ export default function HomeScreen() {
   const [editDate, setEditDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Refs for swipeable transactions
-  const swipeRefs = useRef<{ [key: string]: SwipeableTransactionRef | null }>({});
 
   // Get month range - FIXED: Using date-fns to format as YYYY-MM-DD
   const getMonthRange = (date: Date) => {
@@ -375,24 +372,9 @@ export default function HomeScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      // Store the transaction ID to close its swipe after modal closes
-      const transactionIdToClose = editingTransaction.id;
-
-      // Close modal first
       setEditModalVisible(false);
       setEditingTransaction(null);
-
-      // Reload data
       await loadData();
-
-      // Close the swipe action after a short delay to ensure smooth animation
-      setTimeout(() => {
-        const swipeRef = swipeRefs.current[transactionIdToClose];
-        if (swipeRef) {
-          console.log('[Home] Closing swipe for transaction:', transactionIdToClose);
-          swipeRef.close();
-        }
-      }, 100);
 
       Alert.alert('Éxito', 'Transacción actualizada correctamente');
     } catch (err) {
@@ -579,11 +561,6 @@ export default function HomeScreen() {
                 {paginatedTransactions.map((transaction, index) => (
                   <SwipeableTransaction
                     key={index}
-                    ref={(ref) => {
-                      if (ref) {
-                        swipeRefs.current[transaction.id] = ref;
-                      }
-                    }}
                     transaction={transaction}
                     onEdit={handleEditTransaction}
                     onDelete={handleDeleteTransaction}

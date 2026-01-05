@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import { getUserActiveWorkspace } from '@/lib/transactions';
 import { IconSymbol } from '@/components/IconSymbol';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
-import { SwipeableTransaction, SwipeableTransactionRef } from '@/components/SwipeableTransaction';
+import { SwipeableTransaction } from '@/components/SwipeableTransaction';
 
 interface Transaction {
   id: string;
@@ -68,9 +68,6 @@ export default function DashboardScreen() {
   const [editDate, setEditDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Refs for swipeable transactions
-  const swipeRefs = useRef<{ [key: string]: SwipeableTransactionRef | null }>({});
 
   // Get month range - FIXED: Using date-fns to format as YYYY-MM-DD
   const getMonthRange = (date: Date) => {
@@ -375,12 +372,6 @@ export default function DashboardScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      // Close the swipe action
-      const swipeRef = swipeRefs.current[editingTransaction.id];
-      if (swipeRef) {
-        swipeRef.close();
-      }
-
       setEditModalVisible(false);
       setEditingTransaction(null);
       await loadData();
@@ -570,11 +561,6 @@ export default function DashboardScreen() {
                 {paginatedTransactions.map((transaction, index) => (
                   <SwipeableTransaction
                     key={index}
-                    ref={(ref) => {
-                      if (ref) {
-                        swipeRefs.current[transaction.id] = ref;
-                      }
-                    }}
                     transaction={transaction}
                     onEdit={handleEditTransaction}
                     onDelete={handleDeleteTransaction}
