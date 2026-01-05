@@ -8,6 +8,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Modal,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -16,6 +20,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/app/integrations/supabase/client';
 import { getUserActiveWorkspace } from '@/lib/transactions';
 import { IconSymbol } from '@/components/IconSymbol';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 
 interface Transaction {
   id: string;
@@ -28,6 +34,8 @@ interface Transaction {
   icon: string | null;
   installment_current?: number;
   installment_total?: number;
+  main_category_id?: string;
+  subcategory_id?: string;
 }
 
 interface FinancialSummary {
@@ -50,6 +58,15 @@ export default function HomeScreen() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editDate, setEditDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Get month range - FIXED: Using date-fns to format as YYYY-MM-DD
   const getMonthRange = (date: Date) => {
@@ -215,6 +232,8 @@ export default function HomeScreen() {
         icon: t.main_categories?.icono || null,
         installment_current: t.installment_number,
         installment_total: t.installments,
+        main_category_id: t.main_category_id,
+        subcategory_id: t.subcategory_id,
       }));
 
       console.log('[Home] Loaded', transformedTransactions.length, 'transactions');
@@ -299,6 +318,116 @@ export default function HomeScreen() {
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  // Handle edit transaction
+  const handleEditTransaction = (transaction: Transaction) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    setEditingTransaction(transaction);
+    setEditAmount(transaction.amount.toString());
+    setEditDescription(transaction.description);
+    setEditDate(new Date(transaction.date));
+    setEditModalVisible(true);
+  };
+
+  // Handle save edit
+  const handleSaveEdit = async () => {
+    if (!editingTransaction || !user) return;
+
+    const amount = parseFloat(editAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Error', 'Por favor ingresa un monto válido');
+      return;
+    }
+
+    if (!editDescription.trim()) {
+      Alert.alert('Error', 'Por favor ingresa una descripción');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const dateStr = format(editDate, 'yyyy-MM-dd');
+
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({
+          amount,
+          description: editDescription.trim(),
+          date: dateStr,
+        })
+        .eq('id', editingTransaction.id)
+        .eq('workspace_id', workspaceId);
+
+      if (updateError) {
+        console.error('[Home] Error updating transaction:', updateError);
+        throw updateError;
+      }
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      setEditModalVisible(false);
+      setEditingTransaction(null);
+      await loadData();
+
+      Alert.alert('Éxito', 'Transacción actualizada correctamente');
+    } catch (err) {
+      console.error('[Home] Error:', err);
+      Alert.alert('Error', 'No se pudo actualizar la transacción');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle delete transaction
+  const handleDeleteTransaction = (transaction: Transaction) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    Alert.alert(
+      'Eliminar transacción',
+      `¿Estás seguro de que deseas eliminar "${transaction.description}"?`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error: deleteError } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('id', transaction.id)
+                .eq('workspace_id', workspaceId);
+
+              if (deleteError) {
+                console.error('[Home] Error deleting transaction:', deleteError);
+                throw deleteError;
+              }
+
+              if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+
+              await loadData();
+              Alert.alert('Éxito', 'Transacción eliminada correctamente');
+            } catch (err) {
+              console.error('[Home] Error:', err);
+              Alert.alert('Error', 'No se pudo eliminar la transacción');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Calculate percentage spent
@@ -463,6 +592,30 @@ export default function HomeScreen() {
                       <Text style={styles.transactionDate}>
                         {formatTransactionDate(transaction.date)}
                       </Text>
+                      <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => handleEditTransaction(transaction)}
+                        >
+                          <IconSymbol
+                            ios_icon_name="pencil"
+                            android_material_icon_name="edit"
+                            size={18}
+                            color={colors.primary}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={() => handleDeleteTransaction(transaction)}
+                        >
+                          <IconSymbol
+                            ios_icon_name="trash"
+                            android_material_icon_name="delete"
+                            size={18}
+                            color="#EF4444"
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 ))}
@@ -511,6 +664,102 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Editar Transacción</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.inputLabel}>Monto</Text>
+              <TextInput
+                style={styles.input}
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.textSecondary}
+              />
+
+              <Text style={styles.inputLabel}>Descripción</Text>
+              <TextInput
+                style={styles.input}
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Descripción"
+                placeholderTextColor={colors.textSecondary}
+              />
+
+              <Text style={styles.inputLabel}>Fecha</Text>
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>
+                  {format(editDate, 'dd/MM/yyyy')}
+                </Text>
+                <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="calendar-today"
+                  size={20}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={editDate}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setEditDate(selectedDate);
+                    }
+                  }}
+                />
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setEditModalVisible(false)}
+                disabled={isSaving}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveEdit}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -716,6 +965,16 @@ const styles = StyleSheet.create({
   transactionDate: {
     fontSize: 12,
     color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    padding: 6,
+    backgroundColor: colors.background,
+    borderRadius: 6,
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -748,5 +1007,87 @@ const styles = StyleSheet.create({
   paginationSubtext: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBackground,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  input: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+  },
+  dateButton: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBackground,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: colors.cardBackground,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
