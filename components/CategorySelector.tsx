@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,9 +42,13 @@ export function CategorySelector({
   const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
 
   const filteredMainCategories = mainCategories.filter((cat) => cat.tipo === type);
-  const filteredSubcategories = selectedMainCategoryId
-    ? subcategories.filter((sub) => sub.main_category_id === selectedMainCategoryId)
-    : [];
+  
+  // Wrap filteredSubcategories in useMemo to prevent it from changing on every render
+  const filteredSubcategories = useMemo(() => {
+    return selectedMainCategoryId
+      ? subcategories.filter((sub) => sub.main_category_id === selectedMainCategoryId)
+      : [];
+  }, [selectedMainCategoryId, subcategories]);
 
   const selectedMainCategory = mainCategories.find((cat) => cat.id === selectedMainCategoryId);
   const selectedSubcategory = subcategories.find((sub) => sub.id === selectedSubcategoryId);

@@ -121,6 +121,26 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
       });
     });
 
+  // Create animated style for container - ALWAYS called, not conditionally
+  const containerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateX: translateX.value + interpolate(
+            animatedPage.value,
+            [0, totalPages - 1],
+            [0, -(totalPages - 1) * screenWidth]
+          ),
+        },
+      ],
+    };
+  });
+
+  // Memoize page indices - ALWAYS called, not conditionally
+  const pageIndices = useMemo(() => {
+    return Array.from({ length: totalPages }).map((_, index) => index);
+  }, [totalPages]);
+
   if (transactions.length === 0) {
     return (
       <View style={styles.emptyState}>
@@ -157,33 +177,11 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
     );
   };
 
-  const containerAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateX: translateX.value + interpolate(
-            animatedPage.value,
-            [0, totalPages - 1],
-            [0, -(totalPages - 1) * screenWidth]
-          ),
-        },
-      ],
-    };
-  });
-
-  // Create animated styles for pagination dots - moved outside of conditional
-  const dotAnimatedStyles = useMemo(() => {
-    return Array.from({ length: totalPages }).map((_, index) => {
-      // We'll create the animated style in the render
-      return index;
-    });
-  }, [totalPages]);
-
   return (
     <View style={styles.container}>
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[styles.pagesContainer, containerAnimatedStyle]}>
-          {Array.from({ length: totalPages }).map((_, index) => renderPage(index))}
+          {pageIndices.map((index) => renderPage(index))}
         </Animated.View>
       </GestureDetector>
 
@@ -201,7 +199,7 @@ export function TransactionPager({ transactions, itemsPerPage = 5 }: Transaction
           </TouchableOpacity>
 
           <View style={styles.pageIndicatorContainer}>
-            {dotAnimatedStyles.map((index) => (
+            {pageIndices.map((index) => (
               <PaginationDot
                 key={index}
                 index={index}
