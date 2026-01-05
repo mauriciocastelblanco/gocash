@@ -3,12 +3,20 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
+interface SignUpData {
+  email: string;
+  password: string;
+  nombre: string;
+  numero_celular?: string;
+  codigo_celular?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (data: SignUpData) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -78,27 +86,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (data: SignUpData): Promise<{ success: boolean; error?: string }> => {
     try {
-      console.log('[AuthContext] Signing up...');
-      const { data, error } = await supabase.auth.signUp({
+      const { email, password, nombre, numero_celular, codigo_celular } = data;
+
+      console.log('[AuthContext] Starting sign up process...');
+
+      // Check if email exists
+      console.log('[AuthContext] Checking if email exists...');
+      const { data: emailExists, error: emailCheckError } = await supabase
+        .rpc('check_email_exists', { email_to_check: email.toLowerCase() });
+      
+      if (emailCheckError) {
+        console.error('[AuthContext] Error checking email:', emailCheckError);
+        return { success: false, error: 'Error al verificar el email' };
+      }
+
+      if (emailExists) {
+        console.log('[AuthContext] Email already exists');
+        return { success: false, error: 'Este email ya está registrado' };
+      }
+
+      // Check if phone exists (if provided)
+      if (numero_celular && numero_celular.trim() !== '') {
+        console.log('[AuthContext] Checking if phone exists...');
+        const { data: phoneExists, error: phoneCheckError } = await supabase
+          .rpc('check_phone_exists', { phone_to_check: numero_celular });
+        
+        if (phoneCheckError) {
+          console.error('[AuthContext] Error checking phone:', phoneCheckError);
+          return { success: false, error: 'Error al verificar el teléfono' };
+        }
+
+        if (phoneExists) {
+          console.log('[AuthContext] Phone already exists');
+          return { success: false, error: 'Este número ya está registrado' };
+        }
+      }
+
+      // Execute signUp in Supabase Auth
+      console.log('[AuthContext] Creating account...');
+      const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: 'https://natively.dev/email-confirmed'
+          data: {
+            nombre: nombre.trim(),
+            numero_celular: numero_celular || '',
+            codigo_celular: codigo_celular || '+56',
+          }
         }
       });
 
       if (error) {
         console.error('[AuthContext] Sign up error:', error);
-        throw error;
+        return { success: false, error: error.message };
       }
 
       console.log('[AuthContext] Sign up successful');
-      return data;
-    } catch (error) {
-      console.error('[AuthContext] Error signing up:', error);
-      throw error;
+      return { success: true };
+    } catch (error: any) {
+      console.error('[AuthContext] Unexpected error during sign up:', error);
+      return { success: false, error: 'Ocurrió un error inesperado' };
     }
   };
 

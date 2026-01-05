@@ -22,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
+import { translateError } from '@/lib/validation';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -167,13 +168,7 @@ export default function LoginScreen() {
       let errorMessage = 'No se pudo iniciar sesión. Por favor intenta de nuevo.';
       
       if (error?.message) {
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Email o contraseña incorrectos';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Por favor confirma tu email antes de iniciar sesión';
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = translateError(error.message);
       }
       
       Alert.alert('Error', errorMessage);
@@ -261,6 +256,20 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </Animated.View>
 
+          <TouchableOpacity
+            style={styles.signUpLink}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/signup');
+            }}
+            disabled={isLoading}
+          >
+            <Text style={styles.signUpLinkText}>
+              ¿No tienes cuenta?{' '}
+              <Text style={styles.signUpLinkTextBold}>Regístrate</Text>
+            </Text>
+          </TouchableOpacity>
+
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               💡 Usa tus credenciales de Gocash.cl para iniciar sesión.
@@ -313,6 +322,18 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 8,
+  },
+  signUpLink: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  signUpLinkText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  signUpLinkTextBold: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   infoBox: {
     marginTop: 24,
