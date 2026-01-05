@@ -1,14 +1,16 @@
+
 {
   "expo": {
-    "name": "Gocash",
-    "slug": "Gocash",
+    "name": "Natively",
+    "slug": "Natively",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+    "icon": "./assets/images/natively-dark.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "scheme": "natively",
     "splash": {
-      "image": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+      "image": "./assets/images/natively-dark.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -21,28 +23,22 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+        "foregroundImage": "./assets/images/natively-dark.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.Natively"
     },
     "web": {
-      "favicon": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+      "favicon": "./assets/images/final_quest_240x240.png",
       "bundler": "metro"
     },
     "plugins": [
       "expo-font",
-      "expo-router",
-      "expo-web-browser"
+      "expo-router"
     ],
-    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "router": {}
     }
-  },
-  "scheme": "Gocash"
+  }
 }
