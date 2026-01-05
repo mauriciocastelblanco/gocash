@@ -334,7 +334,11 @@ export default function HomeScreen() {
 
   // Handle save edit
   const handleSaveEdit = async () => {
-    if (!editingTransaction || !user) return;
+    if (!editingTransaction || !user || !workspaceId) {
+      console.error('[Home] Missing required data for save:', { editingTransaction, user, workspaceId });
+      Alert.alert('Error', 'No se pudo actualizar la transacción. Intenta de nuevo.');
+      return;
+    }
 
     const amount = parseFloat(editAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -351,6 +355,14 @@ export default function HomeScreen() {
 
     try {
       const dateStr = format(editDate, 'yyyy-MM-dd');
+
+      console.log('[Home] Updating transaction:', {
+        id: editingTransaction.id,
+        workspaceId,
+        amount,
+        description: editDescription.trim(),
+        date: dateStr,
+      });
 
       const { error: updateError } = await supabase
         .from('transactions')
@@ -382,9 +394,16 @@ export default function HomeScreen() {
     }
   };
 
-  // Handle delete transaction
+  // Handle delete transaction - FIXED: Added workspaceId validation
   const handleDeleteTransaction = (transaction: Transaction) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Validate workspaceId before showing alert
+    if (!workspaceId) {
+      console.error('[Home] No workspace ID available for delete');
+      Alert.alert('Error', 'No se pudo eliminar la transacción. Intenta de nuevo.');
+      return;
+    }
 
     Alert.alert(
       'Eliminar transacción',
@@ -399,6 +418,12 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('[Home] Deleting transaction:', {
+                id: transaction.id,
+                workspaceId,
+                description: transaction.description,
+              });
+
               const { error: deleteError } = await supabase
                 .from('transactions')
                 .delete()
@@ -410,12 +435,14 @@ export default function HomeScreen() {
                 throw deleteError;
               }
 
+              console.log('[Home] Transaction deleted successfully');
+
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
               await loadData();
               Alert.alert('Éxito', 'Transacción eliminada correctamente');
             } catch (err) {
-              console.error('[Home] Error:', err);
+              console.error('[Home] Error deleting transaction:', err);
               Alert.alert('Error', 'No se pudo eliminar la transacción');
             }
           },
@@ -436,7 +463,7 @@ export default function HomeScreen() {
 
   if (isLoading && allTransactions.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, styles.centerContent]} edges={['top']}>
+      <SafeAreaView style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando...</Text>
       </SafeAreaView>
@@ -444,7 +471,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -670,7 +697,7 @@ export default function HomeScreen() {
                   mode="date"
                   display="default"
                   onChange={(event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === 'ios');
+                    setShowDatePicker(false);
                     if (selectedDate) {
                       setEditDate(selectedDate);
                     }
@@ -725,7 +752,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 120,
   },
   monthSelector: {
