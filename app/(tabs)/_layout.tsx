@@ -6,22 +6,22 @@ import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 export default function TabLayout() {
   const tabs: TabBarItem[] = [
     {
-      name: 'dashboard',
-      route: '/(tabs)/dashboard',
-      icon: 'analytics',
-      label: 'Resumen',
+      name: '(home)',
+      route: '/(tabs)/(home)/',
+      icon: 'home',
+      label: 'Home',
     },
     {
-      name: 'new-transaction',
-      route: '/(tabs)/new-transaction',
-      icon: 'add',
-      label: 'Nueva',
+      name: 'categories',
+      route: '/(tabs)/categories',
+      icon: 'list.bullet',
+      label: 'Categorías',
     },
     {
       name: 'profile',
       route: '/(tabs)/profile',
       icon: 'person',
-      label: 'Perfil',
+      label: 'Profile',
     },
   ];
 
@@ -33,8 +33,8 @@ export default function TabLayout() {
           animation: 'none',
         }}
       >
-        <Stack.Screen key="dashboard" name="dashboard" />
-        <Stack.Screen key="new-transaction" name="new-transaction" />
+        <Stack.Screen key="home" name="(home)" />
+        <Stack.Screen key="categories" name="categories" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>
       <FloatingTabBar tabs={tabs} />

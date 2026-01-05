@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getUserActiveWorkspace } from '@/lib/transactions';
 
 export interface MainCategory {
   id: string;
@@ -25,6 +26,7 @@ export function useCategories() {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const loadCategories = useCallback(async () => {
     if (!user) return;
@@ -35,7 +37,12 @@ export function useCategories() {
     try {
       console.log('[useCategories] Loading categories for user:', user.id);
 
-      // Load main categories
+      // Get user's active workspace
+      const activeWorkspaceId = await getUserActiveWorkspace(user.id);
+      console.log('[useCategories] Active workspace:', activeWorkspaceId);
+      setWorkspaceId(activeWorkspaceId);
+
+      // Load main categories (these are global, not workspace-specific)
       const { data: mainCategoriesData, error: mainCategoriesError } = await supabase
         .from('main_categories')
         .select('*')
@@ -49,20 +56,38 @@ export function useCategories() {
       console.log('[useCategories] Loaded main categories:', mainCategoriesData?.length);
       setMainCategories(mainCategoriesData || []);
 
-      // Load subcategories for the user
-      const { data: subcategoriesData, error: subcategoriesError } = await supabase
-        .from('subcategories')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('nombre');
+      // Load subcategories for the user's active workspace
+      if (activeWorkspaceId) {
+        const { data: subcategoriesData, error: subcategoriesError } = await supabase
+          .from('subcategories')
+          .select('*')
+          .eq('workspace_id', activeWorkspaceId)
+          .order('nombre');
 
-      if (subcategoriesError) {
-        console.error('[useCategories] Error loading subcategories:', subcategoriesError);
-        throw subcategoriesError;
+        if (subcategoriesError) {
+          console.error('[useCategories] Error loading subcategories:', subcategoriesError);
+          throw subcategoriesError;
+        }
+
+        console.log('[useCategories] Loaded subcategories:', subcategoriesData?.length);
+        setSubcategories(subcategoriesData || []);
+      } else {
+        console.log('[useCategories] No active workspace, loading user subcategories');
+        // Fallback to user_id if no workspace
+        const { data: subcategoriesData, error: subcategoriesError } = await supabase
+          .from('subcategories')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('nombre');
+
+        if (subcategoriesError) {
+          console.error('[useCategories] Error loading subcategories:', subcategoriesError);
+          throw subcategoriesError;
+        }
+
+        console.log('[useCategories] Loaded subcategories:', subcategoriesData?.length);
+        setSubcategories(subcategoriesData || []);
       }
-
-      console.log('[useCategories] Loaded subcategories:', subcategoriesData?.length);
-      setSubcategories(subcategoriesData || []);
     } catch (err: any) {
       console.error('[useCategories] Error:', err);
       setError(err.message || 'Error loading categories');
@@ -90,6 +115,7 @@ export function useCategories() {
     subcategories,
     isLoading,
     error,
+    workspaceId,
     getSubcategoriesByMainCategory,
     getMainCategoriesByType,
     refreshCategories: loadCategories,
