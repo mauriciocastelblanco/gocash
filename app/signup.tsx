@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -41,25 +40,25 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
-  logo: {
-    width: 120,
-    height: 120,
-    resizeMode: 'contain',
+  logoText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.primary,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
-    textAlign: 'center',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textSecondary,
-    textAlign: 'center',
     marginBottom: 32,
+    textAlign: 'center',
   },
   inputContainer: {
     marginBottom: 16,
@@ -80,20 +79,13 @@ const styles = StyleSheet.create({
   },
   phoneCodeInput: {
     ...commonStyles.input,
-    width: 60,
+    width: 70,
     fontSize: 16,
-    textAlign: 'center',
-    color: colors.textSecondary,
   },
   phoneNumberInput: {
     ...commonStyles.input,
     flex: 1,
     fontSize: 16,
-  },
-  helperText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
   },
   button: {
     ...buttonStyles.primary,
@@ -102,114 +94,107 @@ const styles = StyleSheet.create({
   buttonText: {
     ...buttonStyles.primaryText,
   },
-  footerText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginTop: 24,
   },
-  linkText: {
+  footerText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  footerLink: {
     color: colors.primary,
+    fontSize: 14,
     fontWeight: '600',
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 
 export default function SignUpScreen() {
-  const [nombre, setNombre] = useState('');
+  const router = useRouter();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [codigoCelular, setCodigoCelular] = useState('+56');
   const [numeroCelular, setNumeroCelular] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const router = useRouter();
-  const { signUp, signIn } = useAuth();
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const buttonScale = useSharedValue(1);
-
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
 
   const handleSignUp = async () => {
+    if (isLoading) return;
+
+    // Clear previous errors
+    setErrors({});
+    const newErrors: { [key: string]: string } = {};
+
+    // Validate fields
+    if (!nombre.trim()) {
+      newErrors.nombre = 'El nombre es obligatorio';
+    } else if (nombre.trim().length < 2 || nombre.length > 100) {
+      newErrors.nombre = 'El nombre debe tener entre 2 y 100 caracteres';
+    }
+
+    if (!email.trim()) {
+      newErrors.email = 'El email es obligatorio';
+    } else if (!isValidEmail(email)) {
+      newErrors.email = 'Email inválido';
+    }
+
+    if (!password) {
+      newErrors.password = 'La contraseña es obligatoria';
+    } else if (password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+    }
+
+    // Validate phone if provided
+    if (numeroCelular.trim()) {
+      if (!isValidChileanPhone(numeroCelular)) {
+        newErrors.numeroCelular = 'Número de celular inválido. Debe ser chileno de 9 dígitos';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    setIsLoading(true);
+    buttonScale.value = withSpring(0.95);
+
     try {
-      // Validate required fields
-      if (!nombre.trim()) {
-        Alert.alert('Error', 'Por favor ingresa tu nombre');
-        return;
-      }
-
-      if (!email.trim() || !isValidEmail(email)) {
-        Alert.alert('Error', 'Por favor ingresa un email válido');
-        return;
-      }
-
-      if (!password || password.length < 6) {
-        Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
-        return;
-      }
-
-      // Validate phone if provided
-      let formattedPhone = '';
-      if (numeroCelular.trim()) {
-        if (!isValidChileanPhone(numeroCelular)) {
-          Alert.alert('Error', 'Número de celular inválido. Debe ser chileno de 9 dígitos');
-          return;
-        }
-        formattedPhone = formatPhoneForStorage(numeroCelular);
-      }
-
-      setIsLoading(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      buttonScale.value = withSpring(0.95);
-      setTimeout(() => {
-        buttonScale.value = withSpring(1);
-      }, 100);
-
-      console.log('[SignUp] Creating account with formatted phone:', formattedPhone);
-
-      const { success, error } = await signUp({
+      const result = await signUp({
         email: email.trim().toLowerCase(),
         password,
         nombre: nombre.trim(),
-        numero_celular: formattedPhone,
-        codigo_celular: '+56',
+        numero_celular: numeroCelular.trim() ? formatPhoneForStorage(numeroCelular) : undefined,
+        codigo_celular: codigoCelular,
       });
 
-      if (!success) {
-        Alert.alert('Error', translateError(error || 'No se pudo crear la cuenta'));
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('[SignUp] Account created successfully, auto-logging in...');
-
-      // Auto sign-in after successful registration
-      try {
-        await signIn(email.trim().toLowerCase(), password);
-        console.log('[SignUp] Auto-login successful');
-        
+      if (result.error) {
+        setErrors({ general: result.error });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace('/(tabs)/dashboard');
-      } catch (signInError: any) {
-        console.error('[SignUp] Auto-login failed:', signInError);
-        // If auto-login fails, redirect to login screen
-        Alert.alert(
-          'Cuenta creada',
-          'Tu cuenta fue creada exitosamente. Por favor inicia sesión.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/login'),
-            },
-          ]
-        );
+        // User is automatically logged in, navigation handled by AuthContext
       }
     } catch (error: any) {
-      console.error('[SignUp] Sign up error:', error);
-      Alert.alert('Error', translateError(error.message || 'Ocurrió un error inesperado'));
+      setErrors({ general: translateError(error.message) });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
+      buttonScale.value = withSpring(1);
     }
   };
 
@@ -223,16 +208,17 @@ export default function SignUpScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
-          <Image
-            source={require('@/assets/images/logo.png')}
-            style={styles.logo}
-          />
+          <Text style={styles.logoText}>💰</Text>
         </View>
 
         <Text style={styles.title}>Crear Cuenta</Text>
-        <Text style={styles.subtitle}>
-          💡 Completa tus datos para registrarte en Gocash.cl
-        </Text>
+        <Text style={styles.subtitle}>Registra tus datos para comenzar</Text>
+
+        {errors.general && (
+          <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 16 }]}>
+            {errors.general}
+          </Text>
+        )}
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Nombre *</Text>
@@ -245,6 +231,7 @@ export default function SignUpScreen() {
             autoCapitalize="words"
             editable={!isLoading}
           />
+          {errors.nombre && <Text style={styles.errorText}>{errors.nombre}</Text>}
         </View>
 
         <View style={styles.inputContainer}>
@@ -260,6 +247,7 @@ export default function SignUpScreen() {
             autoCorrect={false}
             editable={!isLoading}
           />
+          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
         </View>
 
         <View style={styles.inputContainer}>
@@ -271,8 +259,11 @@ export default function SignUpScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
             editable={!isLoading}
           />
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
         </View>
 
         <View style={styles.inputContainer}>
@@ -280,8 +271,9 @@ export default function SignUpScreen() {
           <View style={styles.phoneContainer}>
             <TextInput
               style={styles.phoneCodeInput}
-              value="+56"
+              value={codigoCelular}
               editable={false}
+              placeholderTextColor={colors.textSecondary}
             />
             <TextInput
               style={styles.phoneNumberInput}
@@ -294,9 +286,7 @@ export default function SignUpScreen() {
               editable={!isLoading}
             />
           </View>
-          <Text style={styles.helperText}>
-            Número chileno de 9 dígitos (ej: 912345678)
-          </Text>
+          {errors.numeroCelular && <Text style={styles.errorText}>{errors.numeroCelular}</Text>}
         </View>
 
         <Animated.View style={buttonAnimatedStyle}>
@@ -306,22 +296,19 @@ export default function SignUpScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color={colors.background} />
+              <ActivityIndicator color="#000" />
             ) : (
               <Text style={styles.buttonText}>Crear Cuenta</Text>
             )}
           </TouchableOpacity>
         </Animated.View>
 
-        <Text style={styles.footerText}>
-          ¿Ya tienes cuenta?{' '}
-          <Text
-            style={styles.linkText}
-            onPress={() => router.back()}
-          >
-            Inicia Sesión
-          </Text>
-        </Text>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.footerLink}>Inicia Sesión</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
