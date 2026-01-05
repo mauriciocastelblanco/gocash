@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { colors } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/app/integrations/supabase/client';
 import { getUserActiveWorkspace } from '@/lib/transactions';
-import { IconSymbol } from '@/components/IconSymbol';
+import { IconSymbol } from '@/components/IconSymbol.ios';
 
 interface Transaction {
   id: string;
@@ -313,15 +314,15 @@ export default function HomeScreen() {
 
   if (isLoading && allTransactions.length === 0) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
+      <SafeAreaView style={[styles.container, styles.centerContent]} edges={['top']}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -511,7 +512,7 @@ export default function HomeScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -519,7 +520,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: 48,
   },
   centerContent: {
     justifyContent: 'center',
@@ -535,6 +535,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 120,
   },
   monthSelector: {
