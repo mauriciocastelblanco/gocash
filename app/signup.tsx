@@ -1,6 +1,6 @@
 
-import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
-import { useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import React, { useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
   View,
@@ -14,24 +14,23 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import React, { useState } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import {
   isValidEmail,
   isValidChileanPhone,
   formatPhoneForStorage,
   translateError,
 } from '@/lib/validation';
-import { useAuth } from '@/contexts/AuthContext';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#101824',
   },
   scrollContent: {
     flexGrow: 1,
@@ -40,161 +39,177 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.primary,
+  logo: {
+    fontSize: 64,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
+    color: '#FFFFFF',
     textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 32,
+    color: '#9CA3AF',
     textAlign: 'center',
+    marginBottom: 32,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   input: {
-    ...commonStyles.input,
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   phoneContainer: {
     flexDirection: 'row',
     gap: 8,
   },
-  phoneCodeInput: {
-    ...commonStyles.input,
+  countryCodeInput: {
     width: 70,
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    color: '#9CA3AF',
+    borderWidth: 1,
+    borderColor: '#374151',
+    textAlign: 'center',
   },
-  phoneNumberInput: {
-    ...commonStyles.input,
+  phoneInput: {
     flex: 1,
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    color: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    marginTop: 4,
+    opacity: 0.6,
   },
   button: {
-    ...buttonStyles.primary,
+    backgroundColor: '#52DF68',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#52DF68',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonText: {
-    ...buttonStyles.primaryText,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   footerText: {
-    color: colors.textSecondary,
+    textAlign: 'center',
+    color: '#9CA3AF',
+    marginTop: 24,
     fontSize: 14,
   },
-  footerLink: {
-    color: colors.primary,
-    fontSize: 14,
+  linkText: {
+    color: '#52DF68',
     fontWeight: '600',
-  },
-  errorText: {
-    color: colors.error,
-    fontSize: 12,
-    marginTop: 4,
   },
 });
 
 export default function SignUpScreen() {
+  const { signUp, signIn } = useAuth();
   const router = useRouter();
-  const { signUp } = useAuth();
+  const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [codigoCelular, setCodigoCelular] = useState('+56');
   const [numeroCelular, setNumeroCelular] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const buttonScale = useSharedValue(1);
+
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
 
   const handleSignUp = async () => {
-    if (isLoading) return;
-
-    // Clear previous errors
-    setErrors({});
-    const newErrors: { [key: string]: string } = {};
-
-    // Validate fields
-    if (!nombre.trim()) {
-      newErrors.nombre = 'El nombre es obligatorio';
-    } else if (nombre.trim().length < 2 || nombre.length > 100) {
-      newErrors.nombre = 'El nombre debe tener entre 2 y 100 caracteres';
-    }
-
-    if (!email.trim()) {
-      newErrors.email = 'El email es obligatorio';
-    } else if (!isValidEmail(email)) {
-      newErrors.email = 'Email inválido';
-    }
-
-    if (!password) {
-      newErrors.password = 'La contraseña es obligatoria';
-    } else if (password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
-    }
-
-    // Validate phone if provided
-    if (numeroCelular.trim()) {
-      if (!isValidChileanPhone(numeroCelular)) {
-        newErrors.numeroCelular = 'Número de celular inválido. Debe ser chileno de 9 dígitos';
-      }
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
-
-    setIsLoading(true);
-    buttonScale.value = withSpring(0.95);
-
     try {
+      // Validation
+      if (!nombre.trim()) {
+        Alert.alert('Error', 'El nombre es obligatorio');
+        return;
+      }
+
+      if (!isValidEmail(email)) {
+        Alert.alert('Error', 'Email inválido');
+        return;
+      }
+
+      if (password.length < 6) {
+        Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+
+      if (numeroCelular && !isValidChileanPhone(numeroCelular)) {
+        Alert.alert('Error', 'Número de celular inválido');
+        return;
+      }
+
+      setIsLoading(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const formattedPhone = numeroCelular ? formatPhoneForStorage(numeroCelular) : '';
+
+      console.log('📝 Signing up user:', { email, nombre, formattedPhone });
+
+      // Sign up
       const result = await signUp({
-        email: email.trim().toLowerCase(),
+        email,
         password,
         nombre: nombre.trim(),
-        numero_celular: numeroCelular.trim() ? formatPhoneForStorage(numeroCelular) : undefined,
-        codigo_celular: codigoCelular,
+        numero_celular: formattedPhone,
+        codigo_celular: '+56',
       });
 
       if (result.error) {
-        setErrors({ general: result.error });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      } else {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // User is automatically logged in, navigation handled by AuthContext
+        Alert.alert('Error', result.error);
+        setIsLoading(false);
+        return;
       }
+
+      console.log('✅ Sign up successful, now signing in...');
+
+      // Auto-login after successful signup
+      await signIn(email, password);
+
+      console.log('✅ Auto-login successful, redirecting to dashboard...');
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Navigate to dashboard
+      router.replace('/(tabs)/dashboard');
     } catch (error: any) {
-      setErrors({ general: translateError(error.message) });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
+      console.error('❌ Sign up error:', error);
+      Alert.alert('Error', translateError(error.message || 'Error al crear cuenta'));
       setIsLoading(false);
-      buttonScale.value = withSpring(1);
     }
   };
 
@@ -208,85 +223,70 @@ export default function SignUpScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>💰</Text>
+          <Text style={styles.logo}>💰</Text>
         </View>
 
         <Text style={styles.title}>Crear Cuenta</Text>
         <Text style={styles.subtitle}>Registra tus datos para comenzar</Text>
 
-        {errors.general && (
-          <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 16 }]}>
-            {errors.general}
-          </Text>
-        )}
-
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Nombre *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Tu nombre completo"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="Mauricio"
+            placeholderTextColor="#6B7280"
             value={nombre}
             onChangeText={setNombre}
             autoCapitalize="words"
-            editable={!isLoading}
           />
-          {errors.nombre && <Text style={styles.errorText}>{errors.nombre}</Text>}
+          <Text style={styles.helperText}>El nombre es obligatorio</Text>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Email *</Text>
           <TextInput
             style={styles.input}
-            placeholder="tu@email.com"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="mabri10@gmail.com"
+            placeholderTextColor="#6B7280"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
           />
-          {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+          <Text style={styles.helperText}>El email es obligatorio</Text>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Contraseña *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Mínimo 6 caracteres"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="••••••••"
+            placeholderTextColor="#6B7280"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
           />
-          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+          <Text style={styles.helperText}>La contraseña es obligatoria</Text>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Celular (Opcional)</Text>
           <View style={styles.phoneContainer}>
             <TextInput
-              style={styles.phoneCodeInput}
-              value={codigoCelular}
+              style={styles.countryCodeInput}
+              value="+56"
               editable={false}
-              placeholderTextColor={colors.textSecondary}
             />
             <TextInput
-              style={styles.phoneNumberInput}
+              style={styles.phoneInput}
               placeholder="959113551"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor="#6B7280"
               value={numeroCelular}
               onChangeText={setNumeroCelular}
               keyboardType="phone-pad"
               maxLength={9}
-              editable={!isLoading}
             />
           </View>
-          {errors.numeroCelular && <Text style={styles.errorText}>{errors.numeroCelular}</Text>}
         </View>
 
         <Animated.View style={buttonAnimatedStyle}>
@@ -294,21 +294,30 @@ export default function SignUpScreen() {
             style={styles.button}
             onPress={handleSignUp}
             disabled={isLoading}
+            onPressIn={() => {
+              buttonScale.value = withSpring(0.95);
+            }}
+            onPressOut={() => {
+              buttonScale.value = withSpring(1);
+            }}
           >
             {isLoading ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color="#000000" />
             ) : (
               <Text style={styles.buttonText}>Crear Cuenta</Text>
             )}
           </TouchableOpacity>
         </Animated.View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.footerLink}>Inicia Sesión</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.footerText}>
+          ¿Ya tienes cuenta?{' '}
+          <Text
+            style={styles.linkText}
+            onPress={() => router.back()}
+          >
+            Inicia Sesión
+          </Text>
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
