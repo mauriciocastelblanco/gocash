@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PieChart } from 'react-native-chart-kit';
 import {
   View,
   Text,
@@ -12,7 +11,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Dimensions,
   Modal,
   TextInput,
   Alert,
@@ -49,12 +47,6 @@ interface FinancialSummary {
 type FilterType = 'all' | 'income' | 'expense';
 
 const ITEMS_PER_PAGE = 10;
-const screenWidth = Dimensions.get('window').width;
-
-const chartConfig = {
-  color: (opacity = 1) => `rgba(82, 223, 104, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-};
 
 export default function DashboardScreen() {
   const { user } = useAuth();
@@ -169,26 +161,6 @@ export default function DashboardScreen() {
       loadData();
     }
   }, [user]);
-
-  const pieChartData = useMemo(() => {
-    const expenseTransactions = transactions.filter(t => t.type === 'expense');
-    const subcategoryTotals: { [key: string]: number } = {};
-    
-    expenseTransactions.forEach(t => {
-      const subcat = t.subcategory || 'Sin categoría';
-      subcategoryTotals[subcat] = (subcategoryTotals[subcat] || 0) + t.amount;
-    });
-
-    const colors = ['#52DF68', '#4ECDC4', '#FF6B6B', '#FFE66D', '#A8E6CF', '#FF8B94', '#C7CEEA'];
-    
-    return Object.entries(subcategoryTotals).map(([name, value], index) => ({
-      name,
-      population: value,
-      color: colors[index % colors.length],
-      legendFontColor: '#FFFFFF',
-      legendFontSize: 12,
-    }));
-  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     if (filter === 'all') return transactions;
@@ -369,22 +341,18 @@ export default function DashboardScreen() {
           </LinearGradient>
         </View>
 
-        {/* Pie Chart */}
-        {pieChartData.length > 0 && (
-          <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>Gastos por Subcategoría</Text>
-            <PieChart
-              data={pieChartData}
-              width={screenWidth - 40}
-              height={220}
-              chartConfig={chartConfig}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
-            />
-          </View>
-        )}
+        {/* Balance Card */}
+        <View style={styles.balanceContainer}>
+          <LinearGradient 
+            colors={summary.income - summary.expense >= 0 ? ['#52DF68', '#3BC252'] : ['#FF6B6B', '#EE5A52']} 
+            style={styles.balanceCard}
+          >
+            <Text style={styles.balanceLabel}>Balance del Mes</Text>
+            <Text style={styles.balanceAmount}>
+              {formatCurrency(summary.income - summary.expense)}
+            </Text>
+          </LinearGradient>
+        </View>
 
         {/* Filter Buttons */}
         <View style={styles.filterContainer}>
@@ -410,48 +378,54 @@ export default function DashboardScreen() {
 
         {/* Transactions List */}
         <View style={styles.transactionsContainer}>
-          {paginatedTransactions.map((transaction) => (
-            <View key={transaction.id} style={styles.transactionCard}>
-              <View style={styles.transactionLeft}>
-                <Text style={styles.transactionIcon}>{transaction.icon || '💰'}</Text>
-                <View style={styles.transactionInfo}>
-                  <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                  <Text style={styles.transactionCategory}>
-                    {transaction.main_category} • {transaction.subcategory}
-                  </Text>
-                  <Text style={styles.transactionDate}>{formatTransactionDate(transaction.date)}</Text>
-                </View>
-              </View>
-              <View style={styles.transactionRight}>
-                <Text
-                  style={[
-                    styles.transactionAmount,
-                    transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
-                  ]}
-                >
-                  {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                </Text>
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity onPress={() => handleEdit(transaction)} style={styles.actionButton}>
-                    <IconSymbol 
-                      ios_icon_name="pencil" 
-                      android_material_icon_name="edit" 
-                      size={18} 
-                      color={colors.primary} 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(transaction.id)} style={styles.actionButton}>
-                    <IconSymbol 
-                      ios_icon_name="trash" 
-                      android_material_icon_name="delete" 
-                      size={18} 
-                      color="#FF6B6B" 
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
+          {paginatedTransactions.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No hay transacciones este mes</Text>
             </View>
-          ))}
+          ) : (
+            paginatedTransactions.map((transaction) => (
+              <View key={transaction.id} style={styles.transactionCard}>
+                <View style={styles.transactionLeft}>
+                  <Text style={styles.transactionIcon}>{transaction.icon || '💰'}</Text>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                    <Text style={styles.transactionCategory}>
+                      {transaction.main_category} • {transaction.subcategory}
+                    </Text>
+                    <Text style={styles.transactionDate}>{formatTransactionDate(transaction.date)}</Text>
+                  </View>
+                </View>
+                <View style={styles.transactionRight}>
+                  <Text
+                    style={[
+                      styles.transactionAmount,
+                      transaction.type === 'income' ? styles.incomeAmount : styles.expenseAmount,
+                    ]}
+                  >
+                    {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                  </Text>
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity onPress={() => handleEdit(transaction)} style={styles.actionButton}>
+                      <IconSymbol 
+                        ios_icon_name="pencil" 
+                        android_material_icon_name="edit" 
+                        size={18} 
+                        color={colors.primary} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(transaction.id)} style={styles.actionButton}>
+                      <IconSymbol 
+                        ios_icon_name="trash" 
+                        android_material_icon_name="delete" 
+                        size={18} 
+                        color="#FF6B6B" 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Pagination */}
@@ -583,7 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   summaryCard: {
     flex: 1,
@@ -600,18 +574,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
   },
-  chartContainer: {
-    backgroundColor: colors.card,
-    marginHorizontal: 20,
+  balanceContainer: {
+    paddingHorizontal: 20,
     marginBottom: 20,
+  },
+  balanceCard: {
     padding: 16,
     borderRadius: 16,
+    alignItems: 'center',
   },
-  chartTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
+  balanceLabel: {
+    fontSize: 14,
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFF',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -642,6 +622,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 12,
     paddingBottom: 120,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   transactionCard: {
     flexDirection: 'row',
