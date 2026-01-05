@@ -20,7 +20,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
     padding: 20,
   },
   header: {
@@ -49,10 +48,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   menuItemText: {
     fontSize: 16,
@@ -63,12 +62,16 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   signOutButton: {
-    ...buttonStyles.button,
     backgroundColor: '#FF3B30',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
     marginTop: 20,
   },
-  signOutButtonText: {
-    ...buttonStyles.buttonText,
+  signOutText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -77,7 +80,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 20,
     width: '90%',
@@ -95,39 +98,46 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 12,
   },
+  modalSection: {
+    marginBottom: 16,
+  },
   modalSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.primary,
-    marginTop: 16,
     marginBottom: 8,
   },
   closeButton: {
-    ...buttonStyles.button,
-    marginTop: 20,
+    backgroundColor: colors.primary,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
   },
   closeButtonText: {
-    ...buttonStyles.buttonText,
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [showAbout, setShowAbout] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const handleAboutPress = () => {
-    setShowAbout(true);
+    setShowAboutModal(true);
   };
 
   const handleTermsPress = () => {
-    setShowTerms(true);
+    setShowTermsModal(true);
   };
 
   const handlePrivacyPress = () => {
-    setShowPrivacy(true);
+    setShowPrivacyModal(true);
   };
 
   const handleSignOut = async () => {
@@ -135,7 +145,10 @@ export default function ProfileScreen() {
       'Cerrar Sesión',
       '¿Estás seguro que deseas cerrar sesión?',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
         {
           text: 'Cerrar Sesión',
           style: 'destructive',
@@ -158,14 +171,17 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Información</Text>
+          
           <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
             <Text style={styles.menuItemText}>Acerca de</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
             <Text style={styles.menuItemText}>Términos y Condiciones</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuItem} onPress={handlePrivacyPress}>
             <Text style={styles.menuItemText}>Política de Privacidad</Text>
             <Text style={styles.arrow}>›</Text>
@@ -173,149 +189,242 @@ export default function ProfileScreen() {
         </View>
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutButtonText}>Cerrar Sesión</Text>
+          <Text style={styles.signOutText}>Cerrar Sesión</Text>
         </TouchableOpacity>
       </ScrollView>
 
       {/* About Modal */}
       <Modal
-        visible={showAbout}
+        visible={showAboutModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowAbout(false)}
+        onRequestClose={() => setShowAboutModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Acerca de Gocash</Text>
             <ScrollView>
-              <Text style={styles.modalTitle}>Acerca de Gocash</Text>
               <Text style={styles.modalText}>
                 Gocash es una aplicación de gestión financiera personal que te ayuda a controlar tus gastos e ingresos de manera simple y efectiva.
               </Text>
               <Text style={styles.modalText}>
-                Versión 1.0.0
+                Versión: 1.0.0
               </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowAbout(false)}
-              >
-                <Text style={styles.closeButtonText}>Cerrar</Text>
-              </TouchableOpacity>
+              <Text style={styles.modalText}>
+                Desarrollado por CCL TECHNOLOGIES
+              </Text>
+              <Text style={styles.modalText}>
+                RUT: 78.115.917-4
+              </Text>
             </ScrollView>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowAboutModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* Terms Modal */}
       <Modal
-        visible={showTerms}
+        visible={showTermsModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowTerms(false)}
+        onRequestClose={() => setShowTermsModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Términos y Condiciones</Text>
             <ScrollView>
-              <Text style={styles.modalTitle}>Términos y Condiciones</Text>
-              <Text style={styles.modalText}>
-                Al usar Gocash, aceptas estos términos y condiciones. Por favor, léelos cuidadosamente.
-              </Text>
-              <Text style={styles.modalText}>
-                [Aquí irían los términos y condiciones completos]
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowTerms(false)}
-              >
-                <Text style={styles.closeButtonText}>Cerrar</Text>
-              </TouchableOpacity>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>1) Aceptación</Text>
+                <Text style={styles.modalText}>
+                  Al registrarte, acceder o usar Gocash ("la Plataforma"), aceptas estos Términos y Condiciones y la Política de Privacidad. Si no estás de acuerdo, no uses la plataforma.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>2) Qué es Gocash</Text>
+                <Text style={styles.modalText}>
+                  Gocash es una billetera digital que te permite:{'\n\n'}
+                  • Registrar y ver gastos e ingresos.{'\n'}
+                  • Analizar hábitos de consumo.{'\n'}
+                  • Recibir ayuda en gestión y cobro de pagos.{'\n'}
+                  • Hacer y recibir transferencias entre cuentas compatibles.{'\n\n'}
+                  Gocash no es un banco ni una institución financiera regulada, y los saldos no generan intereses.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>3) Registro y datos</Text>
+                <Text style={styles.modalText}>
+                  Para usar Gocash debes:{'\n\n'}
+                  • Ser mayor de 18 años.{'\n'}
+                  • Registrarte con información real, actual y completa.{'\n'}
+                  • Cuidar tus credenciales de acceso.{'\n\n'}
+                  Podemos pedir información o documentos para verificar identidad y prevenir fraudes.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>4) Uso permitido</Text>
+                <Text style={styles.modalText}>
+                  Te comprometes a:{'\n\n'}
+                  • Usar la plataforma solo con fines legales.{'\n'}
+                  • No usarla para fraudes, lavado de dinero o financiamiento del terrorismo.{'\n'}
+                  • No afectar el funcionamiento técnico o la seguridad de la plataforma.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>5) Seguridad de cuenta</Text>
+                <Text style={styles.modalText}>
+                  Eres responsable de:{'\n\n'}
+                  • Mantener tus contraseñas confidenciales.{'\n'}
+                  • Avisarnos de inmediato si detectas accesos no autorizados.{'\n\n'}
+                  Aplicamos medidas de seguridad, pero no podemos garantizar seguridad absoluta.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>6) Membresías, comisiones y tarifas</Text>
+                <Text style={styles.modalText}>
+                  Algunos servicios pueden tener costos:{'\n\n'}
+                  • Membresía mensual: para funciones premium. El monto se informa al registrarte y puede cambiar con aviso mínimo de 15 días.{'\n'}
+                  • Comisión por transacción: si usas Gocash para cobro de deudas a terceros, se aplicará una comisión informada antes del pago y descontada automáticamente.{'\n\n'}
+                  Valores en CLP, con o sin IVA según corresponda. Si no pagas la membresía, podemos suspender o limitar funciones hasta regularización.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>7) Limitación de responsabilidad</Text>
+                <Text style={styles.modalText}>
+                  Gocash no responde por:{'\n\n'}
+                  • Uso indebido de tus credenciales.{'\n'}
+                  • Caídas del servicio por causas externas (internet, fallas técnicas, fuerza mayor).{'\n'}
+                  • Daños indirectos, lucro cesante o pérdida de datos.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>8) Datos personales</Text>
+                <Text style={styles.modalText}>
+                  Tratamos datos según la Ley 19.628 y normas aplicables. Usamos la información solo para prestar el servicio y no la compartimos con terceros no autorizados.{'\n\n'}
+                  Contacto: contacto@gocash.cl
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>9) Cambios</Text>
+                <Text style={styles.modalText}>
+                  Podemos actualizar estos términos con aviso previo. Si sigues usando la plataforma, se entiende que aceptas los cambios.
+                </Text>
+              </View>
+
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>10) Ley y jurisdicción</Text>
+                <Text style={styles.modalText}>
+                  Se aplica la ley de Chile. Cualquier disputa se verá en tribunales de Santiago de Chile.
+                </Text>
+              </View>
             </ScrollView>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowTermsModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* Privacy Modal */}
       <Modal
-        visible={showPrivacy}
+        visible={showPrivacyModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowPrivacy(false)}
+        onRequestClose={() => setShowPrivacyModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={true}>
-              <Text style={styles.modalTitle}>Política de Privacidad</Text>
-              
+            <Text style={styles.modalTitle}>Política de Privacidad</Text>
+            <ScrollView>
               <Text style={styles.modalText}>
                 En Gocash, operada por CCL TECHNOLOGIES (RUT: 78.115.917-4), protegemos tu privacidad. Esta política explica qué datos recopilamos, para qué los usamos y cómo los cuidamos.
               </Text>
 
-              <Text style={styles.modalSectionTitle}>1) Datos que recopilamos</Text>
-              <Text style={styles.modalText}>
-                <Text style={{ fontWeight: '600' }}>Identificación:</Text> nombre, RUT, fecha de nacimiento, email, teléfono y datos necesarios para verificar tu identidad.
-              </Text>
-              <Text style={styles.modalText}>
-                <Text style={{ fontWeight: '600' }}>Financieros:</Text> cuentas asociadas, transacciones, cobros y pagos dentro de la plataforma.
-              </Text>
-              <Text style={styles.modalText}>
-                <Text style={{ fontWeight: '600' }}>Uso:</Text> interacción con la app/web, IP, dispositivo, sistema operativo y navegación.
-              </Text>
-              <Text style={styles.modalText}>
-                <Text style={{ fontWeight: '600' }}>Voluntarios:</Text> datos que nos entregues en formularios, encuestas, soporte u otros canales.
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>1) Datos que recopilamos</Text>
+                <Text style={styles.modalText}>
+                  • Identificación: nombre, RUT, fecha de nacimiento, email, teléfono y datos necesarios para verificar tu identidad.{'\n\n'}
+                  • Financieros: cuentas asociadas, transacciones, cobros y pagos dentro de la plataforma.{'\n\n'}
+                  • Uso: interacción con la app/web, IP, dispositivo, sistema operativo y navegación.{'\n\n'}
+                  • Voluntarios: datos que nos entregues en formularios, encuestas, soporte u otros canales.
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>2) Para qué usamos tus datos</Text>
-              <Text style={styles.modalText}>
-                Para: operar y mantener Gocash, procesar pagos/transferencias/cobros, analizar hábitos de gastos e ingresos, prevenir fraudes o usos ilegales, cumplir obligaciones legales, mejorar el servicio y enviarte comunicaciones del servicio (actualizaciones, cambios y alertas de seguridad).
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>2) Para qué usamos tus datos</Text>
+                <Text style={styles.modalText}>
+                  Para: operar y mantener Gocash, procesar pagos/transferencias/cobros, analizar hábitos de gastos e ingresos, prevenir fraudes o usos ilegales, cumplir obligaciones legales, mejorar el servicio y enviarte comunicaciones del servicio (actualizaciones, cambios y alertas de seguridad).
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>3) Base legal</Text>
-              <Text style={styles.modalText}>
-                Usamos tus datos por: tu consentimiento, la ejecución del contrato (Términos y Condiciones) y el cumplimiento de leyes aplicables en Chile.
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>3) Base legal</Text>
+                <Text style={styles.modalText}>
+                  Usamos tus datos por: tu consentimiento, la ejecución del contrato (Términos y Condiciones) y el cumplimiento de leyes aplicables en Chile.
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>4) Conservación</Text>
-              <Text style={styles.modalText}>
-                Guardamos tus datos mientras tu cuenta esté activa y el tiempo necesario para cumplir obligaciones legales, resolver disputas o atender requerimientos regulatorios.
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>4) Conservación</Text>
+                <Text style={styles.modalText}>
+                  Guardamos tus datos mientras tu cuenta esté activa y el tiempo necesario para cumplir obligaciones legales, resolver disputas o atender requerimientos regulatorios.
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>5) Con quién compartimos datos</Text>
-              <Text style={styles.modalText}>
-                Solo con:
-              </Text>
-              <Text style={styles.modalText}>
-                • Proveedores que operan la plataforma (pagos, hosting, verificación de identidad, soporte).{'\n'}
-                • Autoridades, si la ley lo exige.{'\n'}
-                • Socios comerciales, solo con tu consentimiento.
-              </Text>
-              <Text style={styles.modalText}>
-                No vendemos tu información personal.
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>5) Con quién compartimos datos</Text>
+                <Text style={styles.modalText}>
+                  Solo con:{'\n\n'}
+                  • Proveedores que operan la plataforma (pagos, hosting, verificación de identidad, soporte).{'\n'}
+                  • Autoridades, si la ley lo exige.{'\n'}
+                  • Socios comerciales, solo con tu consentimiento.{'\n\n'}
+                  No vendemos tu información personal.
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>6) Seguridad</Text>
-              <Text style={styles.modalText}>
-                Usamos medidas como encriptación, controles de acceso y monitoreo. Aun así, ningún sistema es 100% invulnerable.
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>6) Seguridad</Text>
+                <Text style={styles.modalText}>
+                  Usamos medidas como encriptación, controles de acceso y monitoreo. Aun así, ningún sistema es 100% invulnerable.
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>7) Tus derechos (Ley 19.628)</Text>
-              <Text style={styles.modalText}>
-                Puedes acceder, rectificar, solicitar eliminación (si aplica), oponerte a marketing y pedir suspensión temporal del tratamiento.
-              </Text>
-              <Text style={styles.modalText}>
-                Contacto: contacto@gocash.cl
-              </Text>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>7) Tus derechos (Ley 19.628)</Text>
+                <Text style={styles.modalText}>
+                  Puedes acceder, rectificar, solicitar eliminación (si aplica), oponerte a marketing y pedir suspensión temporal del tratamiento.{'\n\n'}
+                  Contacto: contacto@gocash.cl
+                </Text>
+              </View>
 
-              <Text style={styles.modalSectionTitle}>8) Cookies</Text>
-              <Text style={styles.modalText}>
-                Podemos usar cookies para mejorar la experiencia y analizar el uso. Puedes desactivarlas, pero algunas funciones pueden fallar.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowPrivacy(false)}
-              >
-                <Text style={styles.closeButtonText}>Cerrar</Text>
-              </TouchableOpacity>
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionTitle}>8) Cookies</Text>
+                <Text style={styles.modalText}>
+                  Podemos usar cookies para mejorar la experiencia y analizar el uso. Puedes desactivarlas, pero algunas funciones pueden fallar.
+                </Text>
+              </View>
             </ScrollView>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowPrivacyModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
