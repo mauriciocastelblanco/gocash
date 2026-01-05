@@ -1,7 +1,6 @@
 
 import { IconSymbol } from '@/components/IconSymbol.ios';
 import { useAuth } from '@/contexts/AuthContext';
-import { ExpenseChart } from '@/components/ExpenseChart';
 import {
   View,
   Text,
@@ -16,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { ExpenseChart } from '@/components/ExpenseChart';
 import { supabase } from '@/app/integrations/supabase/client';
 import { colors } from '@/styles/commonStyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,109 +57,68 @@ type FilterType = 'all' | 'income' | 'expense';
 
 const ITEMS_PER_PAGE = 10;
 
+const CATEGORY_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52C41A'
+];
+
 export default function HomeScreen() {
   const { user } = useAuth();
-  const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [summary, setSummary] = useState<FinancialSummary>({ income: 0, expense: 0 });
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [summary, setSummary] = useState<FinancialSummary>({ income: 0, expense: 0 });
   const [categoryExpenses, setCategoryExpenses] = useState<CategoryExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [filter, setFilter] = useState<FilterType>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  
+  // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editDate, setEditDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      getUserActiveWorkspace(user.id).then(setWorkspaceId);
-    }
-  }, [user]);
 
   const loadData = useCallback(async () => {
-    if (!user || !workspaceId) return;
+    if (!user || !workspaceId) {
+      console.log('HomeScreen iOS - No user or workspace ID');
+      return;
+    }
 
     try {
       const { start, end } = getMonthRange(selectedMonth);
-      
-      // Load summary
-      const { data: summaryData } = await supabase
-        .from('transactions')
-        .select('type, amount')
-        .eq('workspace_id', workspaceId)
-        .gte('date', start)
-        .lte('date', end);
+      console.log('HomeScreen iOS - Loading data for range:', start, 'to', end);
+      console.log('HomeScreen iOS - Workspace ID:', workspaceId);
 
-      const newSummary = { income: 0, expense: 0 };
-      summaryData?.forEach((t) => {
-        if (t.type === 'income') newSummary.income += t.amount;
-        else newSummary.expense += t.amount;
-      });
-      setSummary(newSummary);
-
-      // Load category expenses for chart
-      const { data: expenseData } = await supabase
+      // Fetch transactions
+      const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select(`
+          id,
+          date,
+          description,
           amount,
-          main_categories!inner(name, icon)
+          type,
+          main_categories!inner(name, icon, id),
+          subcategories(name, id)
         `)
         .eq('workspace_id', workspaceId)
-        .eq('type', 'expense')
         .gte('date', start)
-        .lte('date', end);
+        .lte('date', end)
+        .order('date', { ascending: false });
 
-      const categoryMap = new Map<string, { amount: number; icon: string }>();
-      expenseData?.forEach((item: any) => {
-        const categoryName = item.main_categories?.name || 'Otros';
-        const icon = item.main_categories?.icon || '💰';
-        const existing = categoryMap.get(categoryName) || { amount: 0, icon };
-        categoryMap.set(categoryName, {
-          amount: existing.amount + item.amount,
-          icon,
-        });
-      });
-
-      const expenses = Array.from(categoryMap.entries())
-        .map(([category, data]) => ({
-          category,
-          icon: data.icon,
-          amount: data.amount,
-          color: '',
-        }))
-        .sort((a, b) => b.amount - a.amount);
-
-      setCategoryExpenses(expenses);
-
-      // Load transactions with pagination
-      const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-      let query = supabase
-        .from('transactions')
-        .select(`
-          *,
-          main_categories(name, icon),
-          subcategories(name)
-        `, { count: 'exact' })
-        .eq('workspace_id', workspaceId)
-        .gte('date', start)
-        .lte('date', end);
-
-      if (filterType !== 'all') {
-        query = query.eq('type', filterType);
+      if (transactionsError) {
+        console.error('HomeScreen iOS - Transactions error:', transactionsError);
+        throw transactionsError;
       }
 
-      const { data, count } = await query
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .range(offset, offset + ITEMS_PER_PAGE - 1);
+      console.log('HomeScreen iOS - Loaded transactions:', transactionsData?.length || 0);
+      console.log('HomeScreen iOS - Raw transactions data:', JSON.stringify(transactionsData, null, 2));
 
-      const formattedTransactions = data?.map((t: any) => ({
+      const formattedTransactions: Transaction[] = (transactionsData || []).map((t: any) => ({
         id: t.id,
         date: t.date,
         description: t.description,
@@ -168,31 +127,85 @@ export default function HomeScreen() {
         main_category: t.main_categories?.name || null,
         subcategory: t.subcategories?.name || null,
         icon: t.main_categories?.icon || null,
-        installment_current: t.installment_current,
-        installment_total: t.installment_total,
-        main_category_id: t.main_category_id,
-        subcategory_id: t.subcategory_id,
-      })) || [];
+        main_category_id: t.main_categories?.id || null,
+        subcategory_id: t.subcategories?.id || null,
+      }));
 
       setTransactions(formattedTransactions);
-      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+
+      // Calculate summary
+      const income = formattedTransactions
+        .filter((t) => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const expense = formattedTransactions
+        .filter((t) => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      console.log('HomeScreen iOS - Summary - Income:', income, 'Expense:', expense);
+      setSummary({ income, expense });
+
+      // Calculate category expenses
+      const expensesByCategory = formattedTransactions
+        .filter((t) => t.type === 'expense')
+        .reduce((acc, t) => {
+          const category = t.main_category || 'Sin categoría';
+          const icon = t.icon || '💰';
+          if (!acc[category]) {
+            acc[category] = { category, icon, amount: 0 };
+          }
+          acc[category].amount += t.amount;
+          return acc;
+        }, {} as Record<string, { category: string; icon: string; amount: number }>);
+
+      const categoryExpensesArray = Object.values(expensesByCategory)
+        .map((item, index) => ({
+          ...item,
+          color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      console.log('HomeScreen iOS - Category expenses:', categoryExpensesArray);
+      console.log('HomeScreen iOS - Category expenses count:', categoryExpensesArray.length);
+      setCategoryExpenses(categoryExpensesArray);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('HomeScreen iOS - Error loading data:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, workspaceId, selectedMonth, filterType, currentPage]);
+  }, [user, workspaceId, selectedMonth]);
+
+  useEffect(() => {
+    if (user) {
+      getUserActiveWorkspace(user.id).then((id) => {
+        console.log('HomeScreen iOS - Workspace ID:', id);
+        setWorkspaceId(id);
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    // Apply filter
+    let filtered = transactions;
+    if (filter === 'income') {
+      filtered = transactions.filter((t) => t.type === 'income');
+    } else if (filter === 'expense') {
+      filtered = transactions.filter((t) => t.type === 'expense');
+    }
+    console.log('HomeScreen iOS - Filtered transactions:', filtered.length);
+    setFilteredTransactions(filtered);
+    setCurrentPage(1);
+  }, [filter, transactions]);
+
   const getMonthRange = (date: Date) => {
-    return {
-      start: format(startOfMonth(date), 'yyyy-MM-dd'),
-      end: format(endOfMonth(date), 'yyyy-MM-dd'),
-    };
+    const start = format(startOfMonth(date), 'yyyy-MM-dd');
+    const end = format(endOfMonth(date), 'yyyy-MM-dd');
+    return { start, end };
   };
 
   const formatMonthYear = (date: Date) => {
@@ -200,11 +213,7 @@ export default function HomeScreen() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    return `$${amount.toLocaleString('es-CL')}`;
   };
 
   const formatTransactionDate = (dateString: string) => {
@@ -217,34 +226,31 @@ export default function HomeScreen() {
   };
 
   const handleMonthChange = (offset: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newDate = new Date(selectedMonth);
     newDate.setMonth(newDate.getMonth() + offset);
     setSelectedMonth(newDate);
-    setCurrentPage(1);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleFilterChange = (type: FilterType) => {
+    setFilter(type);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setFilterType(type);
-    setCurrentPage(1);
   };
 
   const handlePageChange = (page: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCurrentPage(page);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
     setEditAmount(transaction.amount.toString());
     setEditDescription(transaction.description);
-    setEditDate(new Date(transaction.date));
     setEditModalVisible(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!editingTransaction || !workspaceId) return;
+    if (!editingTransaction) return;
 
     try {
       const { error } = await supabase
@@ -252,24 +258,21 @@ export default function HomeScreen() {
         .update({
           amount: parseFloat(editAmount),
           description: editDescription,
-          date: format(editDate, 'yyyy-MM-dd'),
         })
-        .eq('id', editingTransaction.id)
-        .eq('workspace_id', workspaceId);
+        .eq('id', editingTransaction.id);
 
       if (error) throw error;
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setEditModalVisible(false);
       loadData();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
+      console.error('Error updating transaction:', error);
       Alert.alert('Error', 'No se pudo actualizar la transacción');
     }
   };
 
-  const handleDeleteTransaction = async (transaction: Transaction) => {
-    if (!workspaceId) return;
-
+  const handleDeleteTransaction = (transaction: Transaction) => {
     Alert.alert(
       'Eliminar transacción',
       '¿Estás seguro de que deseas eliminar esta transacción?',
@@ -283,14 +286,14 @@ export default function HomeScreen() {
               const { error } = await supabase
                 .from('transactions')
                 .delete()
-                .eq('id', transaction.id)
-                .eq('workspace_id', workspaceId);
+                .eq('id', transaction.id);
 
               if (error) throw error;
 
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               loadData();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } catch (error) {
+              console.error('Error deleting transaction:', error);
               Alert.alert('Error', 'No se pudo eliminar la transacción');
             }
           },
@@ -300,16 +303,23 @@ export default function HomeScreen() {
   };
 
   const getExpenseCardColor = () => {
-    const balance = summary.income - summary.expense;
-    if (balance > 0) return colors.success;
-    if (balance < 0) return colors.error;
-    return colors.textSecondary;
+    const ratio = summary.expense / summary.income;
+    if (ratio > 0.8) return '#FF6B6B';
+    if (ratio > 0.6) return '#FFA07A';
+    return colors.accent;
   };
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </SafeAreaView>
     );
   }
@@ -319,7 +329,7 @@ export default function HomeScreen() {
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
         {/* Month Selector */}
@@ -327,7 +337,9 @@ export default function HomeScreen() {
           <TouchableOpacity onPress={() => handleMonthChange(-1)} style={styles.monthButton}>
             <IconSymbol name="chevron.left" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.monthText}>{formatMonthYear(selectedMonth)}</Text>
+          <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.monthText}>{formatMonthYear(selectedMonth)}</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => handleMonthChange(1)} style={styles.monthButton}>
             <IconSymbol name="chevron.right" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -335,118 +347,134 @@ export default function HomeScreen() {
 
         {/* Summary Cards */}
         <View style={styles.summaryContainer}>
-          <LinearGradient colors={[colors.success, colors.successDark]} style={styles.summaryCard}>
+          <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Ingresos</Text>
-            <Text style={styles.summaryAmount}>{formatCurrency(summary.income)}</Text>
-          </LinearGradient>
-
-          <LinearGradient colors={[colors.error, colors.errorDark]} style={styles.summaryCard}>
+            <Text style={[styles.summaryAmount, { color: colors.accent }]}>
+              {formatCurrency(summary.income)}
+            </Text>
+          </View>
+          <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Gastos</Text>
-            <Text style={styles.summaryAmount}>{formatCurrency(summary.expense)}</Text>
-          </LinearGradient>
+            <Text style={[styles.summaryAmount, { color: getExpenseCardColor() }]}>
+              {formatCurrency(summary.expense)}
+            </Text>
+          </View>
         </View>
 
-        <View style={[styles.balanceCard, { borderLeftColor: getExpenseCardColor() }]}>
+        {/* Balance Card */}
+        <LinearGradient
+          colors={[colors.accent, '#45B7D1']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.balanceCard}
+        >
           <Text style={styles.balanceLabel}>Balance</Text>
-          <Text style={[styles.balanceAmount, { color: getExpenseCardColor() }]}>
+          <Text style={styles.balanceAmount}>
             {formatCurrency(summary.income - summary.expense)}
           </Text>
-        </View>
+        </LinearGradient>
 
         {/* Expense Chart */}
-        <View style={styles.chartWrapper}>
-          <ExpenseChart expenses={categoryExpenses} total={summary.expense} />
-        </View>
+        {console.log('HomeScreen iOS - Rendering ExpenseChart with data:', categoryExpenses)}
+        <ExpenseChart data={categoryExpenses} formatCurrency={formatCurrency} />
 
-        {/* Filter Tabs */}
+        {/* Filter Buttons */}
         <View style={styles.filterContainer}>
           <TouchableOpacity
-            style={[styles.filterTab, filterType === 'all' && styles.filterTabActive]}
+            style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('all')}
           >
-            <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
+            <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
               Todas
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterTab, filterType === 'income' && styles.filterTabActive]}
+            style={[styles.filterButton, filter === 'income' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('income')}
           >
-            <Text style={[styles.filterText, filterType === 'income' && styles.filterTextActive]}>
+            <Text style={[styles.filterText, filter === 'income' && styles.filterTextActive]}>
               Ingresos
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterTab, filterType === 'expense' && styles.filterTabActive]}
+            style={[styles.filterButton, filter === 'expense' && styles.filterButtonActive]}
             onPress={() => handleFilterChange('expense')}
           >
-            <Text style={[styles.filterText, filterType === 'expense' && styles.filterTextActive]}>
+            <Text style={[styles.filterText, filter === 'expense' && styles.filterTextActive]}>
               Gastos
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Transactions List */}
-        <View style={styles.transactionsContainer}>
-          <Text style={styles.sectionTitle}>Transacciones</Text>
-          {transactions.map((transaction) => (
-            <SwipeableTransaction
-              key={transaction.id}
-              transaction={transaction}
-              onEdit={handleEditTransaction}
-              onDelete={handleDeleteTransaction}
-            />
-          ))}
-        </View>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <View style={styles.pagination}>
-            <TouchableOpacity
-              onPress={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
-            >
-              <Text style={[styles.pageButtonText, currentPage === 1 && styles.pageButtonTextDisabled]}>
-                Anterior
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.pageInfo}>
-              {currentPage} / {totalPages}
-            </Text>
-            <TouchableOpacity
-              onPress={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              style={[styles.pageButton, currentPage === totalPages && styles.pageButtonDisabled]}
-            >
-              <Text
-                style={[
-                  styles.pageButtonText,
-                  currentPage === totalPages && styles.pageButtonTextDisabled,
-                ]}
-              >
-                Siguiente
-              </Text>
-            </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Transacciones</Text>
+        {paginatedTransactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No hay transacciones</Text>
           </View>
+        ) : (
+          <>
+            {paginatedTransactions.map((transaction) => (
+              <SwipeableTransaction
+                key={transaction.id}
+                transaction={transaction}
+                onEdit={handleEditTransaction}
+                onDelete={handleDeleteTransaction}
+                formatCurrency={formatCurrency}
+                formatDate={formatTransactionDate}
+              />
+            ))}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <View style={styles.pagination}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <TouchableOpacity
+                    key={page}
+                    style={[
+                      styles.pageButton,
+                      currentPage === page && styles.pageButtonActive,
+                    ]}
+                    onPress={() => handlePageChange(page)}
+                  >
+                    <Text
+                      style={[
+                        styles.pageText,
+                        currentPage === page && styles.pageTextActive,
+                      ]}
+                    >
+                      {page}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
       {/* Edit Modal */}
-      <Modal visible={editModalVisible} animationType="slide" transparent>
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Editar Transacción</Text>
             
+            <Text style={styles.inputLabel}>Monto</Text>
             <TextInput
               style={styles.input}
               value={editAmount}
               onChangeText={setEditAmount}
               keyboardType="numeric"
-              placeholder="Monto"
+              placeholder="0"
               placeholderTextColor={colors.textSecondary}
             />
-            
+
+            <Text style={styles.inputLabel}>Descripción</Text>
             <TextInput
               style={styles.input}
               value={editDescription}
@@ -454,25 +482,6 @@ export default function HomeScreen() {
               placeholder="Descripción"
               placeholderTextColor={colors.textSecondary}
             />
-            
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.dateButtonText}>{format(editDate, 'dd/MM/yyyy')}</Text>
-            </TouchableOpacity>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={editDate}
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                  setShowDatePicker(Platform.OS === 'ios');
-                  if (date) setEditDate(date);
-                }}
-              />
-            )}
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -491,6 +500,19 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Date Picker */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedMonth}
+          mode="date"
+          display="spinner"
+          onChange={(event, date) => {
+            setShowDatePicker(Platform.OS === 'ios');
+            if (date) setSelectedMonth(date);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -508,79 +530,72 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    padding: 16,
   },
   monthSelector: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    marginBottom: 20,
   },
   monthButton: {
     padding: 8,
   },
   monthText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: colors.text,
-    textTransform: 'capitalize',
   },
   summaryContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
     gap: 12,
     marginBottom: 16,
   },
   summaryCard: {
     flex: 1,
-    padding: 20,
+    backgroundColor: colors.cardBackground,
     borderRadius: 16,
+    padding: 16,
   },
   summaryLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 8,
-  },
-  summaryAmount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  balanceCard: {
-    backgroundColor: colors.cardBackground,
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    marginBottom: 20,
-  },
-  balanceLabel: {
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 8,
   },
-  balanceAmount: {
+  summaryAmount: {
     fontSize: 24,
     fontWeight: '700',
   },
-  chartWrapper: {
-    paddingHorizontal: 20,
+  balanceCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  filterTab: {
+  filterButton: {
     flex: 1,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: colors.cardBackground,
     alignItems: 'center',
   },
-  filterTabActive: {
-    backgroundColor: colors.primary,
+  filterButtonActive: {
+    backgroundColor: colors.accent,
   },
   filterText: {
     fontSize: 14,
@@ -590,42 +605,45 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: colors.background,
   },
-  transactionsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   pagination: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 100,
   },
   pageButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-  },
-  pageButtonDisabled: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.cardBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  pageButtonText: {
-    color: colors.background,
+  pageButtonActive: {
+    backgroundColor: colors.accent,
+  },
+  pageText: {
+    fontSize: 14,
     fontWeight: '600',
-  },
-  pageButtonTextDisabled: {
     color: colors.textSecondary,
   },
-  pageInfo: {
-    color: colors.text,
-    fontSize: 14,
+  pageTextActive: {
+    color: colors.background,
   },
   modalOverlay: {
     flex: 1,
@@ -634,11 +652,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
+    width: '85%',
     backgroundColor: colors.cardBackground,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 24,
-    width: '90%',
-    maxWidth: 400,
   },
   modalTitle: {
     fontSize: 20,
@@ -646,27 +663,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 20,
   },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
-    color: colors.text,
     fontSize: 16,
-    marginBottom: 12,
-  },
-  dateButton: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-  },
-  dateButtonText: {
     color: colors.text,
-    fontSize: 16,
+    marginBottom: 16,
   },
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 8,
   },
   modalButton: {
     flex: 1,
@@ -677,15 +691,17 @@ const styles = StyleSheet.create({
   cancelButton: {
     backgroundColor: colors.background,
   },
-  saveButton: {
-    backgroundColor: colors.primary,
-  },
   cancelButtonText: {
-    color: colors.text,
+    fontSize: 16,
     fontWeight: '600',
+    color: colors.text,
+  },
+  saveButton: {
+    backgroundColor: colors.accent,
   },
   saveButtonText: {
-    color: colors.background,
+    fontSize: 16,
     fontWeight: '600',
+    color: colors.background,
   },
 });
