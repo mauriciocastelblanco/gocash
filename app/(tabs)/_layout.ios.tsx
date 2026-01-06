@@ -1,10 +1,19 @@
 
 import React from 'react';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { colors } from '@/styles/commonStyles';
 
 export default function TabLayout() {
   return (
-    <NativeTabs>
+    <NativeTabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.cardBackground,
+        },
+      }}
+    >
       <NativeTabs.Trigger key="home" name="(home)">
         <Icon sf="house.fill" />
         <Label>Inicio</Label>

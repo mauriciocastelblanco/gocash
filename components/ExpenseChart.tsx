@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { PieChart } from 'react-native-chart-kit';
 import { colors } from '@/styles/commonStyles';
 
 interface CategoryExpense {
@@ -40,44 +39,50 @@ export function ExpenseChart({ data, expenses, total, formatCurrency }: ExpenseC
 
   console.log('ExpenseChart - Rendering chart with data');
 
-  const pieChartData = chartData.map((item, index) => ({
-    name: `${item.icon} ${item.category}`,
-    amount: item.amount,
-    color: item.color || CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-    legendFontColor: colors.textSecondary || '#999',
-    legendFontSize: 12,
-  }));
-
   const defaultFormatCurrency = (amount: number) => {
     return `$${amount.toLocaleString('es-CL')}`;
   };
 
   const currencyFormatter = formatCurrency || defaultFormatCurrency;
 
+  // Calculate total if not provided
+  const totalAmount = total || chartData.reduce((sum, item) => sum + item.amount, 0);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Gastos por Categoría</Text>
-      <PieChart
-        data={pieChartData}
-        width={Dimensions.get('window').width - 64}
-        height={220}
-        chartConfig={{
-          color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-        }}
-        accessor="amount"
-        backgroundColor="transparent"
-        paddingLeft="15"
-        absolute
-      />
-      <View style={styles.legendContainer}>
-        {pieChartData.map((item, index) => (
-          <View key={index} style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-            <Text style={styles.legendText}>
-              {item.name}: {currencyFormatter(item.amount)}
-            </Text>
-          </View>
-        ))}
+      
+      {/* Simple bar chart representation */}
+      <View style={styles.chartContainer}>
+        {chartData.map((item, index) => {
+          const percentage = (item.amount / totalAmount) * 100;
+          const color = item.color || CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+          
+          return (
+            <View key={index} style={styles.barContainer}>
+              <View style={styles.barLabelContainer}>
+                <Text style={styles.barLabel}>
+                  {item.icon} {item.category}
+                </Text>
+                <Text style={styles.barAmount}>
+                  {currencyFormatter(item.amount)}
+                </Text>
+              </View>
+              <View style={styles.barBackground}>
+                <View 
+                  style={[
+                    styles.barFill, 
+                    { 
+                      width: `${percentage}%`,
+                      backgroundColor: color 
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.barPercentage}>{percentage.toFixed(1)}%</Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -107,22 +112,40 @@ const styles = StyleSheet.create({
     color: colors.textSecondary || '#999',
     fontSize: 14,
   },
-  legendContainer: {
-    marginTop: 16,
+  chartContainer: {
+    gap: 16,
   },
-  legendItem: {
+  barContainer: {
+    gap: 4,
+  },
+  barLabelContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
+  barLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text || '#FFFFFF',
   },
-  legendText: {
+  barAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary || '#52DF68',
+  },
+  barBackground: {
+    height: 8,
+    backgroundColor: colors.card || '#2A2A2A',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  barPercentage: {
     fontSize: 12,
     color: colors.textSecondary || '#999',
+    textAlign: 'right',
   },
 });
