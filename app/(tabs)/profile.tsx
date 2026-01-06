@@ -10,13 +10,38 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
+import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const [showAbout, setShowAbout] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalContent, setModalContent] = useState({ title: '', message: '' });
+
+  const handleAboutPress = () => {
+    setModalContent({
+      title: 'Acerca de',
+      message: 'Una herramienta de planificación financiera que te ayuda a crear un presupuesto mensual inteligente, registrar tus gastos e ingresos automáticamente, y medir tu progreso mes a mes para que puedas tomar decisiones más conscientes con tu dinero.',
+    });
+    setModalVisible(true);
+  };
+
+  const handleTermsPress = () => {
+    setModalContent({
+      title: 'Términos y condiciones',
+      message: 'Próximamente',
+    });
+    setModalVisible(true);
+  };
+
+  const handlePrivacyPress = () => {
+    setModalContent({
+      title: 'Privacidad',
+      message: 'Próximamente',
+    });
+    setModalVisible(true);
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -32,13 +57,15 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('[Profile] Signing out...');
+              console.log('[ProfileScreen] Starting sign out...');
               await signOut();
-              console.log('[Profile] Sign out successful');
-              // Navigation will be handled by AuthContext
+              console.log('[ProfileScreen] Sign out successful, navigating to login...');
+              // Force navigation to login screen
+              router.replace('/login');
             } catch (error) {
-              console.error('[Profile] Sign out error:', error);
-              Alert.alert('Error', 'No se pudo cerrar sesión');
+              console.error('[ProfileScreen] Error signing out:', error);
+              // Even if there's an error, try to navigate to login
+              router.replace('/login');
             }
           },
         },
@@ -46,70 +73,93 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleAboutPress = () => {
-    setShowAbout(true);
-  };
-
-  const handleTermsPress = () => {
-    Alert.alert('Términos y Condiciones', 'Próximamente...');
-  };
-
-  const handlePrivacyPress = () => {
-    Alert.alert('Política de Privacidad', 'Próximamente...');
-  };
-
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+    <View style={[commonStyles.container, styles.container]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <Text style={styles.title}>Perfil</Text>
-          {user?.email && (
-            <Text style={styles.email}>{user.email}</Text>
-          )}
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarEmoji}>👤</Text>
+          </View>
+          <View style={styles.userNameContainer}>
+            <Text 
+              style={styles.userName} 
+              numberOfLines={1} 
+              ellipsizeMode="middle"
+            >
+              {user?.email || 'Usuario'}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información</Text>
+          <Text style={styles.sectionTitle}>CONFIGURACIÓN</Text>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemEmoji}>🔔</Text>
+              <Text style={styles.menuItemText}>Notificaciones</Text>
+            </View>
+            <Text style={styles.menuItemArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>INFORMACIÓN</Text>
           
           <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
-            <Text style={styles.menuItemText}>Acerca de</Text>
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemEmoji}>ℹ️</Text>
+              <Text style={styles.menuItemText}>Acerca de</Text>
+            </View>
             <Text style={styles.menuItemArrow}>›</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
-            <Text style={styles.menuItemText}>Términos y Condiciones</Text>
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemEmoji}>📄</Text>
+              <Text style={styles.menuItemText}>Términos y condiciones</Text>
+            </View>
             <Text style={styles.menuItemArrow}>›</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem} onPress={handlePrivacyPress}>
-            <Text style={styles.menuItemText}>Política de Privacidad</Text>
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemEmoji}>🔒</Text>
+              <Text style={styles.menuItemText}>Privacidad</Text>
+            </View>
             <Text style={styles.menuItemArrow}>›</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-            <Text style={styles.signOutButtonText}>Cerrar Sesión</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[buttonStyles.secondaryButton, styles.signOutButton]}
+          onPress={handleSignOut}
+        >
+          <Text style={[buttonStyles.secondaryButtonText, styles.signOutText]}>
+            Cerrar Sesión
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.version}>Versión 1.0.0</Text>
       </ScrollView>
 
       <Modal
-        visible={showAbout}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
-        onRequestClose={() => setShowAbout(false)}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Acerca de</Text>
-            <Text style={styles.modalText}>
-              App de Gastos v1.0{'\n\n'}
-              Una aplicación minimalista para el registro y seguimiento de tus gastos e ingresos.
-            </Text>
+            <Text style={styles.modalTitle}>{modalContent.title}</Text>
+            <Text style={styles.modalMessage}>{modalContent.message}</Text>
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => setShowAbout(false)}
+              onPress={() => setModalVisible(false)}
             >
               <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
@@ -122,29 +172,44 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: colors.background,
+    paddingTop: 48,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
   header: {
-    padding: 24,
-    paddingTop: 60,
+    alignItems: 'center',
+    marginBottom: 32,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  avatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  avatarEmoji: {
+    fontSize: 48,
+  },
+  userNameContainer: {
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
-  },
-  email: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    textAlign: 'center',
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 24,
+    marginBottom: 32,
   },
   sectionTitle: {
     fontSize: 14,
@@ -152,15 +217,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 12,
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.cardBackground,
-    padding: 16,
+    backgroundColor: colors.card,
     borderRadius: 12,
+    padding: 16,
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuItemEmoji: {
+    fontSize: 24,
+    marginRight: 12,
   },
   menuItemText: {
     fontSize: 16,
@@ -171,50 +245,54 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   signOutButton: {
-    backgroundColor: '#ff3b30',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    marginBottom: 16,
   },
-  signOutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  signOutText: {
+    color: colors.error,
+  },
+  version: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
-    width: '80%',
+    width: '100%',
     maxWidth: 400,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
+    textAlign: 'center',
   },
-  modalText: {
+  modalMessage: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.textSecondary,
     lineHeight: 24,
     marginBottom: 24,
+    textAlign: 'center',
   },
   modalButton: {
     backgroundColor: colors.primary,
-    padding: 16,
     borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
   },
   modalButtonText: {
-    color: '#000',
     fontSize: 16,
     fontWeight: '600',
+    color: colors.background,
   },
 });

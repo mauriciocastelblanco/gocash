@@ -38,7 +38,7 @@ export default function TabLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'none',
+          animation: 'none', // Remove fade animation to prevent black screen flash
         }}
       >
         <Stack.Screen key="home" name="(home)" />
