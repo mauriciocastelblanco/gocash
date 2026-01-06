@@ -1,62 +1,48 @@
-
 {
   "expo": {
-    "name": "gocash",
-    "slug": "gocash",
-    "version": "1.0.1",
+    "name": "Gocash",
+    "slug": "Gocash",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "gocash",
-    "userInterfaceStyle": "dark",
+    "icon": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a1a1a"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gocash.app",
+      "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
         "ITSAppUsesNonExemptEncryption": false
-      },
-      "entitlements": {
-        "aps-environment": "production"
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1a1a1a"
+        "foregroundImage": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+        "backgroundColor": "#000000"
       },
-      "package": "com.gocash.app",
-      "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM",
-        "POST_NOTIFICATIONS"
-      ]
+      "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.Natively"
+    },
+    "web": {
+      "favicon": "./assets/images/b353a29a-36f0-4972-8c89-b4b21f096041.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-web-browser",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/natively-dark.png",
-          "color": "#52DF68",
-          "sounds": [],
-          "enableBackgroundRemoteNotifications": true
-        }
-      ]
+      "expo-web-browser"
     ],
+    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "eas": {
-        "projectId": "your-eas-project-id"
-      }
+      "router": {}
     }
-  }
+  },
+  "scheme": "Gocash"
 }
