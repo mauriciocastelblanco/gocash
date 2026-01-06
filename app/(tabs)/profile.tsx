@@ -1,5 +1,10 @@
 
+import React, { useState, useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/app/integrations/supabase/client';
 import {
   View,
   Text,
@@ -10,82 +15,86 @@ import {
   Modal,
   Switch,
 } from 'react-native';
-import { useAuth } from '@/contexts/AuthContext';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
-import React, { useState, useEffect } from 'react';
-import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
 const NOTIFICATION_PREFERENCE_KEY = '@transaction_reminder_enabled';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  content: {
-    flex: 1,
-    paddingTop: 60,
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 100,
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 20,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: colors.text,
     marginBottom: 12,
   },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    overflow: 'hidden',
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 16,
-    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   menuItemLast: {
     borderBottomWidth: 0,
   },
-  menuItemLeft: {
-    flex: 1,
-  },
-  menuItemTitle: {
+  menuItemText: {
     fontSize: 16,
-    fontWeight: '500',
     color: colors.text,
-    marginBottom: 4,
-  },
-  menuItemDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  menuItemRight: {
-    marginLeft: 12,
   },
   signOutButton: {
-    marginHorizontal: 20,
-    marginTop: 32,
-    marginBottom: 20,
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  signOutButtonText: {
+    color: '#1A1A1A',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteAccountButton: {
+    backgroundColor: '#FF3B30',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteAccountButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -94,10 +103,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardBackground,
     borderRadius: 16,
     padding: 24,
-    width: '80%',
+    width: '85%',
     maxWidth: 400,
   },
   modalTitle: {
@@ -107,45 +116,45 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalText: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 24,
   },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   modalButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
     alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.border,
+  },
+  modalButtonConfirm: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
 });
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { signOut } = useAuth();
-  const [showAboutModal, setShowAboutModal] = useState(false);
-  const [showTermsModal, setShowTermsModal] = useState(false);
-  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const { signOut, user } = useAuth();
   const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     loadNotificationPreference();
-    requestNotificationPermissions();
   }, []);
-
-  const requestNotificationPermissions = async () => {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    
-    if (finalStatus !== 'granted') {
-      console.log('Notification permissions not granted');
-    }
-  };
 
   const loadNotificationPreference = async () => {
     try {
@@ -158,9 +167,21 @@ export default function ProfileScreen() {
     }
   };
 
+  const requestNotificationPermissions = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    return finalStatus === 'granted';
+  };
+
   const scheduleTransactionReminder = async () => {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '💰 Recordatorio de Gastos',
@@ -177,50 +198,41 @@ export default function ProfileScreen() {
 
   const handleToggleReminder = async (value: boolean) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    try {
-      setReminderEnabled(value);
-      await AsyncStorage.setItem(NOTIFICATION_PREFERENCE_KEY, value.toString());
-      
-      if (value) {
-        await scheduleTransactionReminder();
+
+    if (value) {
+      const hasPermission = await requestNotificationPermissions();
+      if (!hasPermission) {
         Alert.alert(
-          'Recordatorio Activado',
-          'Recibirás una notificación todos los días a las 9:00 PM para recordarte registrar tus transacciones.',
-          [{ text: 'Entendido' }]
+          'Permisos requeridos',
+          'Por favor, habilita las notificaciones en la configuración de tu dispositivo.'
         );
-      } else {
-        await Notifications.cancelAllScheduledNotificationsAsync();
-        Alert.alert(
-          'Recordatorio Desactivado',
-          'Ya no recibirás notificaciones diarias.',
-          [{ text: 'Entendido' }]
-        );
+        return;
       }
-    } catch (error) {
-      console.error('Error toggling reminder:', error);
-      Alert.alert('Error', 'No se pudo actualizar la preferencia de notificaciones');
-      setReminderEnabled(!value);
+
+      await scheduleTransactionReminder();
+      await AsyncStorage.setItem(NOTIFICATION_PREFERENCE_KEY, 'true');
+      setReminderEnabled(true);
+    } else {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await AsyncStorage.setItem(NOTIFICATION_PREFERENCE_KEY, 'false');
+      setReminderEnabled(false);
     }
   };
 
   const handleAboutPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowAboutModal(true);
+    setShowAbout(true);
   };
 
   const handleTermsPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowTermsModal(true);
+    setShowTerms(true);
   };
 
   const handlePrivacyPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShowPrivacyModal(true);
+    setShowPrivacy(true);
   };
 
-  const handleSignOut = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleSignOut = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Cerrar Sesión',
       '¿Estás seguro que deseas cerrar sesión?',
@@ -230,9 +242,7 @@ export default function ProfileScreen() {
           text: 'Cerrar Sesión',
           style: 'destructive',
           onPress: async () => {
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            await Notifications.cancelAllScheduledNotificationsAsync();
-            signOut();
+            await signOut();
             router.replace('/login');
           },
         },
@@ -240,129 +250,164 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleDeleteAccount = async () => {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      'Eliminar Cuenta',
+      '⚠️ Esta acción es permanente y eliminará todos tus datos. ¿Estás completamente seguro?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete user data from database
+              if (user?.id) {
+                // Delete user's transactions
+                const { error: transactionsError } = await supabase
+                  .from('transactions')
+                  .delete()
+                  .eq('user_id', user.id);
+
+                if (transactionsError) {
+                  console.error('Error deleting transactions:', transactionsError);
+                }
+
+                // Delete user's categories
+                const { error: categoriesError } = await supabase
+                  .from('categories')
+                  .delete()
+                  .eq('user_id', user.id);
+
+                if (categoriesError) {
+                  console.error('Error deleting categories:', categoriesError);
+                }
+
+                // Delete user's workspaces
+                const { error: workspacesError } = await supabase
+                  .from('workspaces')
+                  .delete()
+                  .eq('user_id', user.id);
+
+                if (workspacesError) {
+                  console.error('Error deleting workspaces:', workspacesError);
+                }
+              }
+
+              // Sign out the user
+              await signOut();
+              
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Cuenta Eliminada', 'Tu cuenta ha sido eliminada exitosamente.');
+              router.replace('/login');
+            } catch (error) {
+              console.error('Error deleting account:', error);
+              Alert.alert('Error', 'No se pudo eliminar la cuenta. Intenta nuevamente.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notificaciones</Text>
-          <View style={styles.card}>
-            <View style={[styles.menuItem, styles.menuItemLast]}>
-              <View style={styles.menuItemLeft}>
-                <Text style={styles.menuItemTitle}>
-                  Recordatorio de Transacciones
-                </Text>
-                <Text style={styles.menuItemDescription}>
-                  Recibe una notificación todos los días a las 9:00 PM para recordarte registrar tus gastos e ingresos del día.
-                </Text>
-              </View>
-              <View style={styles.menuItemRight}>
-                <Switch
-                  value={reminderEnabled}
-                  onValueChange={handleToggleReminder}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
-            </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Notifications Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Notificaciones</Text>
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Recordatorio diario</Text>
+            <Text style={styles.settingDescription}>
+              Recibe una notificación todos los días a las 9:00 PM para recordarte ingresar tus transacciones
+            </Text>
           </View>
+          <Switch
+            value={reminderEnabled}
+            onValueChange={handleToggleReminder}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFFFFF"
+          />
         </View>
+      </View>
 
-        {/* Information Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información</Text>
-          <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
-              <Text style={styles.menuItemTitle}>Acerca de</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
-              <Text style={styles.menuItemTitle}>Términos y Condiciones</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.menuItem, styles.menuItemLast]}
-              onPress={handlePrivacyPress}
-            >
-              <Text style={styles.menuItemTitle}>Política de Privacidad</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Sign Out Button */}
-        <TouchableOpacity
-          style={[buttonStyles.button, buttonStyles.buttonDanger, styles.signOutButton]}
-          onPress={handleSignOut}
-        >
-          <Text style={buttonStyles.buttonText}>Cerrar Sesión</Text>
+      {/* About Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Información</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
+          <Text style={styles.menuItemText}>Acerca de</Text>
         </TouchableOpacity>
-      </ScrollView>
+        <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
+          <Text style={styles.menuItemText}>Términos y Condiciones</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.menuItem, styles.menuItemLast]} onPress={handlePrivacyPress}>
+          <Text style={styles.menuItemText}>Política de Privacidad</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Sign Out Button */}
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Text style={styles.signOutButtonText}>Cerrar Sesión</Text>
+      </TouchableOpacity>
+
+      {/* Delete Account Button */}
+      <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
+        <Text style={styles.deleteAccountButtonText}>Eliminar Cuenta</Text>
+      </TouchableOpacity>
 
       {/* Modals */}
-      <Modal
-        visible={showAboutModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAboutModal(false)}
-      >
+      <Modal visible={showAbout} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Acerca de</Text>
             <Text style={styles.modalText}>
-              Aplicación de registro de gastos e ingresos personales.{'\n\n'}
-              Versión 1.0.0
+              Aplicación de registro de gastos v1.0{'\n\n'}
+              Desarrollada para ayudarte a mantener un control detallado de tus finanzas personales.
             </Text>
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowAboutModal(false)}
+              style={[styles.modalButton, styles.modalButtonConfirm]}
+              onPress={() => setShowAbout(false)}
             >
-              <Text style={buttonStyles.buttonText}>Cerrar</Text>
+              <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      <Modal
-        visible={showTermsModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowTermsModal(false)}
-      >
+      <Modal visible={showTerms} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Términos y Condiciones</Text>
             <Text style={styles.modalText}>
-              Aquí irían los términos y condiciones de uso de la aplicación.
+              Al usar esta aplicación, aceptas nuestros términos de servicio y te comprometes a usar la aplicación de manera responsable.
             </Text>
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowTermsModal(false)}
+              style={[styles.modalButton, styles.modalButtonConfirm]}
+              onPress={() => setShowTerms(false)}
             >
-              <Text style={buttonStyles.buttonText}>Cerrar</Text>
+              <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      <Modal
-        visible={showPrivacyModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowPrivacyModal(false)}
-      >
+      <Modal visible={showPrivacy} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Política de Privacidad</Text>
             <Text style={styles.modalText}>
-              Aquí iría la política de privacidad de la aplicación.
+              Tus datos están protegidos y solo se usan para el funcionamiento de la aplicación. No compartimos tu información con terceros.
             </Text>
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowPrivacyModal(false)}
+              style={[styles.modalButton, styles.modalButtonConfirm]}
+              onPress={() => setShowPrivacy(false)}
             >
-              <Text style={buttonStyles.buttonText}>Cerrar</Text>
+              <Text style={styles.modalButtonText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }

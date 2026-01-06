@@ -10,6 +10,7 @@ export const colors = {
   secondary: '#6A6A6A',
   accent: '#52DF68',
   card: '#2D2D2D',
+  cardBackground: '#2D2D2D',
   border: '#3D3D3D',
   income: '#52DF68',
   expense: '#FF6B6B',
