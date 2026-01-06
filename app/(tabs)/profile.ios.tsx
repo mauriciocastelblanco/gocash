@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -8,66 +9,232 @@ import {
   ScrollView,
   Alert,
   Modal,
+  Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
+import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+
+const NOTIFICATION_PREFERENCE_KEY = '@transaction_reminder_enabled';
+
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuItemLeft: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  menuItemDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  menuItemRight: {
+    marginLeft: 12,
+  },
+  signOutButton: {
+    marginHorizontal: 20,
+    marginTop: 32,
+    marginBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+});
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuth();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalContent, setModalContent] = useState({ title: '', message: '' });
+  const { signOut } = useAuth();
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+
+  useEffect(() => {
+    loadNotificationPreference();
+    requestNotificationPermissions();
+  }, []);
+
+  const requestNotificationPermissions = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      console.log('Notification permissions not granted');
+    }
+  };
+
+  const loadNotificationPreference = async () => {
+    try {
+      const value = await AsyncStorage.getItem(NOTIFICATION_PREFERENCE_KEY);
+      if (value !== null) {
+        setReminderEnabled(value === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading notification preference:', error);
+    }
+  };
+
+  const scheduleTransactionReminder = async () => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '💰 Recordatorio de Gastos',
+        body: '¿Ya registraste tus transacciones de hoy?',
+        sound: true,
+      },
+      trigger: {
+        hour: 21,
+        minute: 0,
+        repeats: true,
+      },
+    });
+  };
+
+  const handleToggleReminder = async (value: boolean) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      setReminderEnabled(value);
+      await AsyncStorage.setItem(NOTIFICATION_PREFERENCE_KEY, value.toString());
+      
+      if (value) {
+        await scheduleTransactionReminder();
+        Alert.alert(
+          'Recordatorio Activado',
+          'Recibirás una notificación todos los días a las 9:00 PM para recordarte registrar tus transacciones.',
+          [{ text: 'Entendido' }]
+        );
+      } else {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        Alert.alert(
+          'Recordatorio Desactivado',
+          'Ya no recibirás notificaciones diarias.',
+          [{ text: 'Entendido' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling reminder:', error);
+      Alert.alert('Error', 'No se pudo actualizar la preferencia de notificaciones');
+      setReminderEnabled(!value);
+    }
+  };
 
   const handleAboutPress = () => {
-    setModalContent({
-      title: 'Acerca de',
-      message: 'Una herramienta de planificación financiera que te ayuda a crear un presupuesto mensual inteligente, registrar tus gastos e ingresos automáticamente, y medir tu progreso mes a mes para que puedas tomar decisiones más conscientes con tu dinero.',
-    });
-    setModalVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowAboutModal(true);
   };
 
   const handleTermsPress = () => {
-    setModalContent({
-      title: 'Términos y condiciones',
-      message: 'Próximamente',
-    });
-    setModalVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowTermsModal(true);
   };
 
   const handlePrivacyPress = () => {
-    setModalContent({
-      title: 'Privacidad',
-      message: 'Próximamente',
-    });
-    setModalVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowPrivacyModal(true);
   };
 
   const handleSignOut = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Cerrar Sesión',
       '¿Estás seguro que deseas cerrar sesión?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Cerrar Sesión',
           style: 'destructive',
           onPress: async () => {
-            try {
-              console.log('[ProfileScreen] Starting sign out...');
-              await signOut();
-              console.log('[ProfileScreen] Sign out successful, navigating to login...');
-              // Force navigation to login screen
-              router.replace('/login');
-            } catch (error) {
-              console.error('[ProfileScreen] Error signing out:', error);
-              // Even if there's an error, try to navigate to login
-              router.replace('/login');
-            }
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            await Notifications.cancelAllScheduledNotificationsAsync();
+            signOut();
+            router.replace('/login');
           },
         },
       ]
@@ -75,94 +242,125 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={[commonStyles.container, styles.container]} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>👤</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notificaciones</Text>
+          <View style={styles.card}>
+            <View style={[styles.menuItem, styles.menuItemLast]}>
+              <View style={styles.menuItemLeft}>
+                <Text style={styles.menuItemTitle}>
+                  Recordatorio de Transacciones
+                </Text>
+                <Text style={styles.menuItemDescription}>
+                  Recibe una notificación todos los días a las 9:00 PM para recordarte registrar tus gastos e ingresos del día.
+                </Text>
+              </View>
+              <View style={styles.menuItemRight}>
+                <Switch
+                  value={reminderEnabled}
+                  onValueChange={handleToggleReminder}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor={colors.border}
+                />
+              </View>
+            </View>
           </View>
-          <View style={styles.userNameContainer}>
-            <Text 
-              style={styles.userName} 
-              numberOfLines={1} 
-              ellipsizeMode="middle"
+        </View>
+
+        {/* Information Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Información</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
+              <Text style={styles.menuItemTitle}>Acerca de</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
+              <Text style={styles.menuItemTitle}>Términos y Condiciones</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemLast]}
+              onPress={handlePrivacyPress}
             >
-              {user?.email || 'Usuario'}
-            </Text>
+              <Text style={styles.menuItemTitle}>Política de Privacidad</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>CONFIGURACIÓN</Text>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemEmoji}>🔔</Text>
-              <Text style={styles.menuItemText}>Notificaciones</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>INFORMACIÓN</Text>
-          
-          <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemEmoji}>ℹ️</Text>
-              <Text style={styles.menuItemText}>Acerca de</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemEmoji}>📄</Text>
-              <Text style={styles.menuItemText}>Términos y condiciones</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handlePrivacyPress}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemEmoji}>🔒</Text>
-              <Text style={styles.menuItemText}>Privacidad</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-
+        {/* Sign Out Button */}
         <TouchableOpacity
-          style={[buttonStyles.secondaryButton, styles.signOutButton]}
+          style={[buttonStyles.button, buttonStyles.buttonDanger, styles.signOutButton]}
           onPress={handleSignOut}
         >
-          <Text style={[buttonStyles.secondaryButtonText, styles.signOutText]}>
-            Cerrar Sesión
-          </Text>
+          <Text style={buttonStyles.buttonText}>Cerrar Sesión</Text>
         </TouchableOpacity>
-
-        <Text style={styles.version}>Versión 1.0.0</Text>
       </ScrollView>
 
+      {/* Modals */}
       <Modal
+        visible={showAboutModal}
+        transparent
         animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => setShowAboutModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{modalContent.title}</Text>
-            <Text style={styles.modalMessage}>{modalContent.message}</Text>
+            <Text style={styles.modalTitle}>Acerca de</Text>
+            <Text style={styles.modalText}>
+              Aplicación de registro de gastos e ingresos personales.{'\n\n'}
+              Versión 1.0.0
+            </Text>
             <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setModalVisible(false)}
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowAboutModal(false)}
             >
-              <Text style={styles.modalButtonText}>Cerrar</Text>
+              <Text style={buttonStyles.buttonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showTermsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Términos y Condiciones</Text>
+            <Text style={styles.modalText}>
+              Aquí irían los términos y condiciones de uso de la aplicación.
+            </Text>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowTermsModal(false)}
+            >
+              <Text style={buttonStyles.buttonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPrivacyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Política de Privacidad</Text>
+            <Text style={styles.modalText}>
+              Aquí iría la política de privacidad de la aplicación.
+            </Text>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowPrivacyModal(false)}
+            >
+              <Text style={buttonStyles.buttonText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -170,130 +368,3 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingTop: 0,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 120,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  avatarEmoji: {
-    fontSize: 48,
-  },
-  userNameContainer: {
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  menuItem: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuItemEmoji: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  menuItemText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  menuItemArrow: {
-    fontSize: 24,
-    color: colors.textSecondary,
-  },
-  signOutButton: {
-    marginBottom: 16,
-  },
-  signOutText: {
-    color: colors.error,
-  },
-  version: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modalMessage: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    lineHeight: 24,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  modalButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.background,
-  },
-});
