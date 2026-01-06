@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/app/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   View,
   Text,
@@ -18,22 +18,32 @@ import {
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
 
-const NOTIFICATION_PREFERENCE_KEY = '@transaction_reminder_enabled';
+const NOTIFICATION_PREFERENCE_KEY = '@gocash_notification_reminder';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  contentContainer: {
+  scrollContent: {
     padding: 20,
     paddingBottom: 100,
   },
+  header: {
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
   section: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
@@ -41,58 +51,73 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  settingRow: {
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  notificationCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  notificationContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  notificationDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
   },
-  settingInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  settingLabel: {
+  menuText: {
     fontSize: 16,
     color: colors.text,
-    marginBottom: 4,
   },
-  settingDescription: {
-    fontSize: 13,
+  menuArrow: {
+    fontSize: 18,
     color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  menuItem: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  menuItemLast: {
-    borderBottomWidth: 0,
-  },
-  menuItemText: {
-    fontSize: 16,
-    color: colors.text,
   },
   signOutButton: {
-    backgroundColor: colors.primary,
-    padding: 16,
+    backgroundColor: colors.error,
     borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginTop: 12,
   },
-  signOutButtonText: {
-    color: '#1A1A1A',
+  deleteButton: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  signOutText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  deleteAccountButton: {
-    backgroundColor: '#FF3B30',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  deleteAccountButtonText: {
-    color: '#FFFFFF',
+  deleteText: {
+    color: colors.error,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -103,54 +128,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 24,
     width: '85%',
-    maxWidth: 400,
+    maxHeight: '70%',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   modalText: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.text,
     lineHeight: 24,
     marginBottom: 24,
   },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
+  modalCloseButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
   },
-  modalButtonCancel: {
-    backgroundColor: colors.border,
-  },
-  modalButtonConfirm: {
-    backgroundColor: colors.primary,
-  },
-  modalButtonText: {
+  modalCloseText: {
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
   },
 });
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [showAbout, setShowAbout] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     loadNotificationPreference();
@@ -184,7 +199,7 @@ export default function ProfileScreen() {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '💰 Recordatorio de Gastos',
+        title: '💰 Recordatorio de Gocash',
         body: '¿Ya registraste tus transacciones de hoy?',
         sound: true,
       },
@@ -204,7 +219,7 @@ export default function ProfileScreen() {
       if (!hasPermission) {
         Alert.alert(
           'Permisos requeridos',
-          'Por favor, habilita las notificaciones en la configuración de tu dispositivo.'
+          'Por favor habilita las notificaciones en la configuración de tu dispositivo.'
         );
         return;
       }
@@ -212,6 +227,7 @@ export default function ProfileScreen() {
       await scheduleTransactionReminder();
       await AsyncStorage.setItem(NOTIFICATION_PREFERENCE_KEY, 'true');
       setReminderEnabled(true);
+      Alert.alert('✅ Activado', 'Recibirás recordatorios diarios a las 9:00 PM');
     } else {
       await Notifications.cancelAllScheduledNotificationsAsync();
       await AsyncStorage.setItem(NOTIFICATION_PREFERENCE_KEY, 'false');
@@ -220,15 +236,18 @@ export default function ProfileScreen() {
   };
 
   const handleAboutPress = () => {
-    setShowAbout(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowAboutModal(true);
   };
 
   const handleTermsPress = () => {
-    setShowTerms(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowTermsModal(true);
   };
 
   const handlePrivacyPress = () => {
-    setShowPrivacy(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowPrivacyModal(true);
   };
 
   const handleSignOut = async () => {
@@ -242,7 +261,7 @@ export default function ProfileScreen() {
           text: 'Cerrar Sesión',
           style: 'destructive',
           onPress: async () => {
-            await signOut();
+            await supabase.auth.signOut();
             router.replace('/login');
           },
         },
@@ -251,10 +270,10 @@ export default function ProfileScreen() {
   };
 
   const handleDeleteAccount = async () => {
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert(
       'Eliminar Cuenta',
-      '⚠️ Esta acción es permanente y eliminará todos tus datos. ¿Estás completamente seguro?',
+      '⚠️ Esta acción es permanente y eliminará todos tus datos. ¿Estás seguro?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -262,45 +281,12 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Delete user data from database
-              if (user?.id) {
-                // Delete user's transactions
-                const { error: transactionsError } = await supabase
-                  .from('transactions')
-                  .delete()
-                  .eq('user_id', user.id);
-
-                if (transactionsError) {
-                  console.error('Error deleting transactions:', transactionsError);
-                }
-
-                // Delete user's categories
-                const { error: categoriesError } = await supabase
-                  .from('categories')
-                  .delete()
-                  .eq('user_id', user.id);
-
-                if (categoriesError) {
-                  console.error('Error deleting categories:', categoriesError);
-                }
-
-                // Delete user's workspaces
-                const { error: workspacesError } = await supabase
-                  .from('workspaces')
-                  .delete()
-                  .eq('user_id', user.id);
-
-                if (workspacesError) {
-                  console.error('Error deleting workspaces:', workspacesError);
-                }
-              }
-
-              // Sign out the user
-              await signOut();
+              const { error } = await supabase.rpc('delete_user_account');
+              if (error) throw error;
               
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Cuenta Eliminada', 'Tu cuenta ha sido eliminada exitosamente.');
+              await supabase.auth.signOut();
               router.replace('/login');
+              Alert.alert('Cuenta eliminada', 'Tu cuenta ha sido eliminada exitosamente');
             } catch (error) {
               console.error('Error deleting account:', error);
               Alert.alert('Error', 'No se pudo eliminar la cuenta. Intenta nuevamente.');
@@ -312,102 +298,145 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Notifications Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notificaciones</Text>
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Recordatorio diario</Text>
-            <Text style={styles.settingDescription}>
-              Recibe una notificación todos los días a las 9:00 PM para recordarte ingresar tus transacciones
-            </Text>
-          </View>
-          <Switch
-            value={reminderEnabled}
-            onValueChange={handleToggleReminder}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor="#FFFFFF"
-          />
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Perfil</Text>
+          <Text style={styles.subtitle}>{user?.email}</Text>
         </View>
-      </View>
 
-      {/* About Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Información</Text>
-        <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
-          <Text style={styles.menuItemText}>Acerca de</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
-          <Text style={styles.menuItemText}>Términos y Condiciones</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.menuItem, styles.menuItemLast]} onPress={handlePrivacyPress}>
-          <Text style={styles.menuItemText}>Política de Privacidad</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notificaciones</Text>
+          <View style={styles.notificationCard}>
+            <View style={styles.notificationContent}>
+              <Text style={styles.notificationTitle}>
+                Recordatorio para ingresar transacciones
+              </Text>
+              <Text style={styles.notificationDescription}>
+                Todos los días a las 9:00 PM se notificará vía push
+              </Text>
+            </View>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={handleToggleReminder}
+              trackColor={{ false: colors.textSecondary, true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
 
-      {/* Sign Out Button */}
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutButtonText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Información</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleAboutPress}>
+              <Text style={styles.menuText}>Acerca de</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={handleTermsPress}>
+              <Text style={styles.menuText}>Términos y Condiciones</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={handlePrivacyPress}>
+              <Text style={styles.menuText}>Políticas de Privacidad</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      {/* Delete Account Button */}
-      <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
-        <Text style={styles.deleteAccountButtonText}>Eliminar Cuenta</Text>
-      </TouchableOpacity>
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+            <Text style={styles.signOutText}>Cerrar Sesión</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+            <Text style={styles.deleteText}>Eliminar Cuenta</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
-      {/* Modals */}
-      <Modal visible={showAbout} transparent animationType="fade">
+      {/* About Modal */}
+      <Modal
+        visible={showAboutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAboutModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Acerca de</Text>
-            <Text style={styles.modalText}>
-              Aplicación de registro de gastos v1.0{'\n\n'}
-              Desarrollada para ayudarte a mantener un control detallado de tus finanzas personales.
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>Acerca de Gocash</Text>
+              <Text style={styles.modalText}>
+                Gocash es una app de finanzas personales que te ayuda a registrar y ordenar tus gastos e ingresos, y a entender en qué se va tu dinero para tomar mejores decisiones.
+              </Text>
+            </ScrollView>
             <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonConfirm]}
-              onPress={() => setShowAbout(false)}
+              style={styles.modalCloseButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowAboutModal(false);
+              }}
             >
-              <Text style={styles.modalButtonText}>Cerrar</Text>
+              <Text style={styles.modalCloseText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={showTerms} transparent animationType="fade">
+      {/* Terms Modal */}
+      <Modal
+        visible={showTermsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Términos y Condiciones</Text>
-            <Text style={styles.modalText}>
-              Al usar esta aplicación, aceptas nuestros términos de servicio y te comprometes a usar la aplicación de manera responsable.
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>Términos y Condiciones</Text>
+              <Text style={styles.modalText}>
+                Al usar Gocash aceptas estos términos. Debes ser mayor de 18 años, entregar información real y mantener tu cuenta segura. Gocash no es un banco. Se prohíben usos ilegales. Algunos servicios pueden tener membresía o comisiones, informadas antes de cobrar. Se aplica la ley de Chile.
+              </Text>
+            </ScrollView>
             <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonConfirm]}
-              onPress={() => setShowTerms(false)}
+              style={styles.modalCloseButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowTermsModal(false);
+              }}
             >
-              <Text style={styles.modalButtonText}>Cerrar</Text>
+              <Text style={styles.modalCloseText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={showPrivacy} transparent animationType="fade">
+      {/* Privacy Modal */}
+      <Modal
+        visible={showPrivacyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Política de Privacidad</Text>
-            <Text style={styles.modalText}>
-              Tus datos están protegidos y solo se usan para el funcionamiento de la aplicación. No compartimos tu información con terceros.
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.modalTitle}>Políticas de Privacidad</Text>
+              <Text style={styles.modalText}>
+                En Gocash usamos tus datos solo para que la app funcione correctamente y puedas ver tu información financiera de forma ordenada. Tu información se protege con medidas de seguridad y no se vende a terceros. Solo se comparte cuando es necesario para operar el servicio o si la ley lo exige.{'\n\n'}
+                Puedes solicitar acceso, corrección o eliminación de tus datos (cuando corresponda) escribiendo a contacto@gocash.cl.
+              </Text>
+            </ScrollView>
             <TouchableOpacity
-              style={[styles.modalButton, styles.modalButtonConfirm]}
-              onPress={() => setShowPrivacy(false)}
+              style={styles.modalCloseButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowPrivacyModal(false);
+              }}
             >
-              <Text style={styles.modalButtonText}>Cerrar</Text>
+              <Text style={styles.modalCloseText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
