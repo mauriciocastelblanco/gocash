@@ -7,11 +7,7 @@ export default function TabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger key="home" name="(home)">
         <Icon sf="house.fill" />
-        <Label>Inicio</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="new-transaction" name="new-transaction">
-        <Icon sf="plus.circle.fill" />
-        <Label>Agregar</Label>
+        <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="categories" name="categories">
         <Icon sf="list.bullet" />
@@ -19,7 +15,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="profile" name="profile">
         <Icon sf="person.fill" />
-        <Label>Perfil</Label>
+        <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
