@@ -6,7 +6,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert } from "react-native";
+import { useColorScheme, Alert, Platform } from "react-native";
 import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
@@ -81,7 +81,12 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style="auto" animated />
+      {/* StatusBar con estilo light-content para iOS (texto blanco sobre fondo negro) */}
+      <StatusBar 
+        style={Platform.OS === 'ios' ? 'light' : 'auto'} 
+        backgroundColor="#000000"
+        animated 
+      />
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
       >
@@ -116,7 +121,7 @@ export default function RootLayout() {
                     }}
                   />
                 </Stack>
-                <SystemBars style={"auto"} />
+                <SystemBars style={Platform.OS === 'ios' ? 'light' : 'auto'} />
               </GestureHandlerRootView>
             </WidgetProvider>
           </TransactionProvider>

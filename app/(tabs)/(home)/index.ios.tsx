@@ -463,15 +463,15 @@ export default function HomeScreen() {
 
   if (isLoading && allTransactions.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, styles.centerContent]}>
+      <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -729,7 +729,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -737,6 +737,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+    paddingTop: 60, // Espacio para la barra negra superior (Dynamic Island)
   },
   centerContent: {
     justifyContent: 'center',
@@ -752,7 +753,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingTop: 20,
+    paddingBottom: 120, // Espacio para la navbar negra inferior
   },
   monthSelector: {
     flexDirection: 'row',

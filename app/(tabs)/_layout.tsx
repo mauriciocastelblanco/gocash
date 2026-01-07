@@ -1,52 +1,48 @@
 
+import { Tabs } from 'expo-router';
 import React from 'react';
-import { Stack } from 'expo-router';
-import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import { Platform, StatusBar } from 'react-native';
+import FloatingTabBar from '@/components/FloatingTabBar';
+import { colors } from '@/styles/commonStyles';
 
 export default function TabLayout() {
-  // Define the tabs configuration
-  const tabs: TabBarItem[] = [
-    {
-      name: '(home)',
-      route: '/(tabs)/(home)/',
-      icon: 'home',
-      label: 'Inicio',
-    },
-    {
-      name: 'new-transaction',
-      route: '/(tabs)/new-transaction',
-      icon: 'add-circle',
-      label: 'Agregar',
-    },
-    {
-      name: 'categories',
-      route: '/(tabs)/categories',
-      icon: 'list',
-      label: 'Categorías',
-    },
-    {
-      name: 'profile',
-      route: '/(tabs)/profile',
-      icon: 'person',
-      label: 'Perfil',
-    },
-  ];
-
-  // For Android and Web, use Stack navigation with custom floating tab bar
   return (
     <>
-      <Stack
+      {Platform.OS === 'ios' && <StatusBar barStyle="light-content" />}
+      <Tabs
+        tabBar={(props) => <FloatingTabBar {...props} />}
         screenOptions={{
           headerShown: false,
-          animation: 'none',
+          tabBarStyle: {
+            backgroundColor: '#000000',
+          },
         }}
       >
-        <Stack.Screen key="home" name="(home)" />
-        <Stack.Screen key="new-transaction" name="new-transaction" />
-        <Stack.Screen key="categories" name="categories" />
-        <Stack.Screen key="profile" name="profile" />
-      </Stack>
-      <FloatingTabBar tabs={tabs} />
+        <Tabs.Screen
+          name="(home)"
+          options={{
+            title: 'Resumen',
+          }}
+        />
+        <Tabs.Screen
+          name="new-transaction"
+          options={{
+            title: 'Nueva',
+          }}
+        />
+        <Tabs.Screen
+          name="categories"
+          options={{
+            title: 'Categorías',
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Perfil',
+          }}
+        />
+      </Tabs>
     </>
   );
 }
