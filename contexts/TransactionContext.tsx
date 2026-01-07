@@ -34,7 +34,23 @@ interface TransactionContextType {
   refreshTransactions: () => Promise<void>;
 }
 
-const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
+// Create context with a default value to prevent undefined errors
+const TransactionContext = createContext<TransactionContextType>({
+  transactions: [],
+  isLoading: false,
+  error: null,
+  addTransaction: async () => {
+    throw new Error('TransactionProvider not initialized');
+  },
+  deleteTransaction: async () => {
+    throw new Error('TransactionProvider not initialized');
+  },
+  getMonthlyTransactions: () => [],
+  getMonthlyTotal: () => 0,
+  refreshTransactions: async () => {
+    throw new Error('TransactionProvider not initialized');
+  },
+});
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -228,8 +244,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
 export function useTransactions() {
   const context = useContext(TransactionContext);
-  if (context === undefined) {
-    throw new Error('useTransactions must be used within a TransactionProvider');
-  }
+  // The context will never be undefined now because we provide a default value
   return context;
 }

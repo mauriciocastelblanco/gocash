@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[AuthContext] Cleaning up subscription');
       subscription.unsubscribe();
     };
-  }, []);
+  }, [router]); // Added router to dependencies
 
   // Protected route logic
   useEffect(() => {
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[AuthContext] Already authenticated, redirecting to home...');
       router.replace('/(tabs)/(home)/');
     }
-  }, [user, isLoading, segments]);
+  }, [user, isLoading, segments, router]); // Added router to dependencies
 
   const signIn = async (email: string, password: string) => {
     console.log('[AuthContext] Signing in...');
