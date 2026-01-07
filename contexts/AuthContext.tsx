@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/app/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
+import { useRouter, useSegments } from 'expo-router';
 
 interface SignUpData {
   email: string;
@@ -26,6 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     console.log('[AuthContext] Initializing auth...');
@@ -53,13 +56,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[AuthContext] Auth state changed:', _event, session ? 'has session' : 'no session');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[AuthContext] Auth state changed:', event, session ? 'has session' : 'no session');
       
       // Update state immediately
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+
+      // Handle navigation based on auth event
+      if (event === 'SIGNED_IN' && session) {
+        console.log('[AuthContext] User signed in, navigating to home...');
+        // Use setTimeout to ensure navigation happens after state update
+        setTimeout(() => {
+          router.replace('/(tabs)/(home)/');
+        }, 100);
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[AuthContext] User signed out, navigating to login...');
+        setTimeout(() => {
+          router.replace('/(auth)/login');
+        }, 100);
+      }
     });
 
     return () => {
@@ -67,6 +84,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Protected route logic
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    console.log('[AuthContext] Route protection check:', {
+      hasUser: !!user,
+      inAuthGroup,
+      inTabsGroup,
+      segments,
+    });
+
+    if (!user && !inAuthGroup && segments.length > 0) {
+      // User is not authenticated and not in auth screens
+      console.log('[AuthContext] Unauthorized access, redirecting to login...');
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      // User is authenticated but in auth screens
+      console.log('[AuthContext] Already authenticated, redirecting to home...');
+      router.replace('/(tabs)/(home)/');
+    }
+  }, [user, isLoading, segments]);
 
   const signIn = async (email: string, password: string) => {
     console.log('[AuthContext] Signing in...');
@@ -80,10 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
 
-    console.log('[AuthContext] Sign in successful, updating state...');
-    // Update state immediately after successful login
-    setSession(data.session);
-    setUser(data.user);
+    console.log('[AuthContext] Sign in successful');
+    // State update and navigation will be handled by onAuthStateChange
   };
 
   const signUp = async (data: SignUpData): Promise<{ success: boolean; error?: string }> => {
@@ -164,11 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('[AuthContext] Sign out from Supabase successful');
-      
-      // Clear local state after successful sign out
-      setSession(null);
-      setUser(null);
-      console.log('[AuthContext] Local state cleared');
+      // State update and navigation will be handled by onAuthStateChange
     } catch (error) {
       console.error('[AuthContext] Error signing out:', error);
       // Clear local state even if there's an error to ensure user is logged out
